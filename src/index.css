@@ -1,0 +1,398 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #020617;
+  --panel: #0f172a;
+  --panel-2: #1e293b;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --line: #334155;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Fira Sans', sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 500px at 75% -20%, #1f2a44 0%, transparent 60%),
+    linear-gradient(180deg, #020617 0%, #071028 100%);
+  min-width: 320px;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+.brand {
+  font-family: 'Fira Code', monospace;
+  margin: 0;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid var(--line);
+  background: rgba(5, 12, 29, 0.8);
+  padding: 20px 14px;
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  font-size: 1.1rem;
+  color: #67e8f9;
+  margin-bottom: 14px;
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nav-btn,
+.tab-btn,
+.table-row,
+.btn {
+  cursor: pointer;
+}
+
+.nav-btn {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #0a1731;
+  color: var(--text);
+  text-align: left;
+  padding: 10px;
+  transition: all 0.2s ease;
+}
+
+.nav-btn:hover,
+.tab-btn:hover,
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.nav-btn.active {
+  border-color: #22d3ee;
+  background: linear-gradient(90deg, #082246, #0c2f55);
+}
+
+.main-content {
+  padding: 16px;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.topbar h1 {
+  font-size: 1.4rem;
+}
+
+.rate-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rate-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.7);
+  display: flex;
+  gap: 8px;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr 360px;
+  grid-template-rows: auto 1fr;
+  gap: 12px;
+}
+
+.tabs {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tab-btn {
+  border: 1px solid var(--line);
+  background: #0f1d37;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 14px;
+}
+
+.tab-btn.active {
+  border-color: #38bdf8;
+  background: #12355f;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.92);
+  padding: 12px;
+}
+
+.left-panel,
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.map-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+label {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #020617;
+  color: var(--text);
+  padding: 8px;
+  margin: 6px 0 10px;
+}
+
+.list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.list .highlight {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.preview,
+.map-image {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #1f335a;
+}
+
+.map-image {
+  max-height: 480px;
+  object-fit: cover;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  background: #12203d;
+  border: 1px solid #24436f;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 0.8rem;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.kpi-card {
+  border: 1px solid #27406a;
+  border-radius: 10px;
+  padding: 10px;
+  background: #0d1d38;
+}
+
+.kpi-card p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.kpi-card strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 1.2rem;
+}
+
+.kpi-card small {
+  color: #7dd3fc;
+}
+
+.table-head,
+.table-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+.table-head {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 8px 0;
+}
+
+.table-row {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0a1730;
+  color: var(--text);
+  width: 100%;
+  padding: 8px;
+  text-align: left;
+  margin-bottom: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.table-row.active,
+.table-row:hover {
+  border-color: #38bdf8;
+}
+
+.table-head.large,
+.table-row.large {
+  grid-template-columns: 130px 1fr 1fr 100px 160px;
+}
+
+.table-row.static-row {
+  cursor: default;
+}
+
+.ai-card {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3) inset;
+}
+
+.action-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid #34567c;
+  background: #123056;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.btn.primary {
+  background: #1f6640;
+  border-color: #22c55e;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.rank-list {
+  margin: 8px 0 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+}
+
+.full {
+  height: calc(100vh - 120px);
+  overflow: auto;
+}
+
+.content-2col {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 12px;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.timeline li {
+  border-left: 3px solid #38bdf8;
+  padding: 7px 10px;
+  background: #0c1d37;
+  display: grid;
+  gap: 2px;
+}
+
+.cms-preview {
+  border: 1px dashed #38bdf8;
+  border-radius: 8px;
+  padding: 12px;
+  background: #0b2647;
+  font-size: 1.05rem;
+}
+
+.status.ok {
+  color: var(--ok);
+}
+
+.status.warn {
+  color: var(--warn);
+}
+
+.status.danger {
+  color: var(--danger);
+}
+
+@media (max-width: 1200px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .page-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-row,
+  .content-2col,
+  .table-head.large,
+  .table-row.large {
+    grid-template-columns: 1fr;
+  }
+}
