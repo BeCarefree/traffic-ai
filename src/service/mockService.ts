@@ -31,10 +31,10 @@ const mockData = {
   ] as SidebarItem[],
 
   dashboardTabs: [
-    { key: 'dynamicSignal', label: '動態號控示範區' },
-    { key: 'priorityPass', label: '優先通行示範區' },
-    { key: 'dangerIntersection', label: '危險路口示範區' },
-    { key: 'unsignalizedIntersection', label: '無號誌路口示範區' },
+    { key: 'dynamicSignal', label: '動態號控' },
+    { key: 'priorityPass', label: '優先通行' },
+    { key: 'dangerIntersection', label: '危險路口' },
+    { key: 'unsignalizedIntersection', label: '無號誌路口' },
   ] as TabItem[],
 
   incidents: [
@@ -143,13 +143,13 @@ export const mockService = {
   getMapImage(tab: DashboardTab): string {
     switch (tab) {
       case 'unsignalizedIntersection':
-        return '/media/image19.jpeg'
+        return `${import.meta.env.BASE_URL}media/image19.jpeg`
       case 'dangerIntersection':
-        return '/media/image9.jpeg'
+        return `${import.meta.env.BASE_URL}media/image9.jpeg`
       case 'priorityPass':
-        return '/media/image7.jpeg'
+        return `${import.meta.env.BASE_URL}media/image7.jpeg`
       default:
-        return '/media/image5.png'
+        return `${import.meta.env.BASE_URL}media/image5.png`
     }
   },
 }

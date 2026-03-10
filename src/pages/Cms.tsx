@@ -33,7 +33,7 @@ export default function CmsPage() {
           <li>10:03 發布至 CMS-07（孝三路 / 忠三路）</li>
           <li>09:58 發布至 CMS-02（信一路 / 義一路）</li>
         </ul>
-        <img src="/media/image15.jpeg" alt="CMS 設備示意" className="preview" />
+        <img src={`${import.meta.env.BASE_URL}media/image15.jpeg`} alt="CMS 設備示意" className="preview" />
       </article>
     </section>
   )

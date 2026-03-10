@@ -37,7 +37,7 @@ export default function DataMonitorPage() {
           <li>09:47 TC 動態資料暫時抖動（已恢復）</li>
           <li>09:31 CCTV-06 影像串流中斷（處理中）</li>
         </ul>
-        <img src="/media/image11.png" alt="AI 事故分析示意" className="preview" />
+        <img src={`${import.meta.env.BASE_URL}media/image11.png`} alt="AI 事故分析示意" className="preview" />
       </article>
     </section>
   )

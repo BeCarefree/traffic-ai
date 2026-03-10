@@ -38,7 +38,7 @@ export default function DashboardPage() {
           <li>中華路 / 復旦路</li>
         </ul>
         <h3>即時影像</h3>
-        <img src="/media/image6.png" alt="即時影像示意" className="preview" />
+        <img src={`${import.meta.env.BASE_URL}media/image6.png`} alt="即時影像示意" className="preview" />
       </div>
 
       <div className="map-panel card">

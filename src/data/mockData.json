@@ -7,10 +7,10 @@
     { "key": "dataMonitor", "label": "資料監控" }
   ],
   "dashboardTabs": [
-    { "key": "dynamicSignal", "label": "動態號控示範區" },
-    { "key": "priorityPass", "label": "優先通行示範區" },
-    { "key": "dangerIntersection", "label": "危險路口示範區" },
-    { "key": "unsignalizedIntersection", "label": "無號誌路口示範區" }
+    { "key": "dynamicSignal", "label": "動態號控" },
+    { "key": "priorityPass", "label": "優先通行" },
+    { "key": "dangerIntersection", "label": "危險路口" },
+    { "key": "unsignalizedIntersection", "label": "無號誌路口" }
   ],
   "incidents": [
     { "id": "E-20260309-001", "time": "2026-03-09 09:11", "type": "人車事故", "status": "處理中", "location": "安一路 / 西定路", "severity": "高" },
