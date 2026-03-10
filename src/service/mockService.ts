@@ -147,7 +147,7 @@ export const mockService = {
       case 'dangerIntersection':
         return `${import.meta.env.BASE_URL}media/image9.jpeg`
       case 'priorityPass':
-        return `${import.meta.env.BASE_URL}media/image7.jpeg`
+        return `${import.meta.env.BASE_URL}media/roadmap.png`
       default:
         return `${import.meta.env.BASE_URL}media/image5.png`
     }
