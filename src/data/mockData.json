@@ -13,7 +13,7 @@
     { "key": "unsignalizedIntersection", "label": "無號誌路口" }
   ],
   "incidents": [
-    { "id": "E-20260309-001", "time": "2026-03-09 09:11", "type": "人車事故", "status": "處理中", "location": "安一路 / 西定路", "severity": "高" },
+    { "id": "E-20260309-001", "time": "2026-03-09 09:11", "type": "人車事故", "status": "處理中", "location": "忠一路 / 孝二路", "severity": "高" },
     { "id": "E-20260309-002", "time": "2026-03-09 09:25", "type": "忠一路壅塞", "status": "新事件", "location": "忠一路 / 愛三路", "severity": "中" },
     { "id": "E-20260309-003", "time": "2026-03-09 09:40", "type": "施工影響", "status": "已解除", "location": "中華路 / 復旦路", "severity": "低" },
     { "id": "E-20260309-004", "time": "2026-03-09 10:02", "type": "人車事故", "status": "新事件", "location": "孝三路 / 忠三路", "severity": "高" },

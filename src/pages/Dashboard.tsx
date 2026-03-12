@@ -12,6 +12,8 @@ export default function DashboardPage() {
   const routeKpi = mockService.getRouteKpi()
 
   const mapImage = useMemo(() => mockService.getMapImage(activeTab), [activeTab])
+  const isDangerIntersectionTab = activeTab === 'dangerIntersection'
+  const dangerIntersectionImageUrl = 'https://cctv.klcg.gov.tw/1c8ebc07'
 
   return (
     <section className="page-grid">
@@ -32,7 +34,7 @@ export default function DashboardPage() {
         <input id="roadSearch" placeholder="請輸入道路關鍵字" defaultValue="安一路" />
         <h3>路口清單</h3>
         <ul className="list">
-          <li className="highlight">安一路 / 西定路（事故中）</li>
+          <li className="highlight">忠一路 / 孝二路</li>
           <li>孝三路 / 忠三路</li>
           <li>信一路 / 義一路</li>
           <li>中華路 / 復旦路</li>
@@ -49,7 +51,30 @@ export default function DashboardPage() {
           <span className="chip">VD</span>
           <span className="chip">事件</span>
         </div>
-        <img src={mapImage} alt="地圖監控畫面" className="map-image" />
+        {isDangerIntersectionTab ? (
+          <img
+            src={dangerIntersectionImageUrl}
+            data-src={dangerIntersectionImageUrl}
+            alt="忠一路 孝二路"
+            className="cctv-image lazyloaded map-image"
+            style={{ display: 'block' }}
+            referrerPolicy="no-referrer"
+            onLoad={(e) => {
+              const image = e.currentTarget
+              if (!image.src.startsWith('data:')) {
+                const previous = image.previousElementSibling as HTMLElement | null
+                if (previous) previous.style.display = 'none'
+              }
+            }}
+            onError={(e) => {
+              const image = e.currentTarget
+              image.onerror = null
+              image.src = 'https://tw.live/assets/maintenance.jpg'
+            }}
+          />
+        ) : (
+          <img src={mapImage} alt="地圖監控畫面" className="map-image" />
+        )}
         <div className="kpi-row">
           {routeKpi.map((kpi) => (
             <article key={kpi.label} className="kpi-card">

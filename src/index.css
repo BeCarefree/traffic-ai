@@ -205,9 +205,25 @@ input {
   border: 1px solid #1f335a;
 }
 
+.map-stream {
+  width: 100%;
+  height: 480px;
+  border-radius: 10px;
+  border: 1px solid #1f335a;
+  background: #020617;
+}
+
 .map-image {
   max-height: 480px;
   object-fit: cover;
+}
+
+.map-image.cctv-image {
+  height: 480px;
+  max-height: none;
+  object-fit: contain;
+  object-position: top center;
+  background: #020617;
 }
 
 .chip-row {
