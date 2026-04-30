@@ -32,6 +32,12 @@ export type DangerIntersection = {
   rank: number
 }
 
+export type UnsignalizedRank = {
+  incidentId: string
+  name: string
+  score: number
+}
+
 export type ChartRange = '12h' | '24h' | '7d'
 
 export type RightTurnCountPoint = { label: string; value: number; highlight: boolean }
@@ -64,40 +70,58 @@ const mockData = {
     { key: 'unsignalizedIntersection', label: '無號誌路口' },
   ] as TabItem[],
 
+  // 座標分兩段來源：
+  // (a) 與 dangerIntersections 同名者直接套用 DI 已驗證的 lat/lng；
+  // (b) 其餘為各路口 OSM Overpass API 共用節點（多為 traffic_signals）查詢結果。
   incidents: [
     // 處理中 (3)
-    { id: 'E-20260309-001', time: '2026-03-09 09:11', type: '人車事故', status: '處理中', location: '忠一路 / 孝二路', severity: '高', cctvHexId: '1c8ebc07', lat: 25.12880, lng: 121.74130 },
-    { id: 'E-20260309-002', time: '2026-03-09 09:25', type: '緊急車輛通行', status: '處理中', location: '愛三路 / 仁五路', severity: '中', cctvHexId: '24b2e625', lat: 25.12750, lng: 121.74350 },
-    { id: 'E-20260309-003', time: '2026-03-09 09:33', type: '號誌異常', status: '處理中', location: '正信路 / 信一路', severity: '高', cctvHexId: '6972615b', lat: 25.13000, lng: 121.74500 },
+    { id: 'E-20260309-001', time: '2026-03-09 09:11', type: '人車事故', status: '處理中', location: '忠一路 / 孝二路', severity: '高', cctvHexId: '1c8ebc07', lat: 25.1309619, lng: 121.7409682 },
+    { id: 'E-20260309-002', time: '2026-03-09 09:25', type: '緊急車輛通行', status: '處理中', location: '愛三路 / 仁五路', severity: '中', cctvHexId: '24b2e625', lat: 25.1269448, lng: 121.7417032 },
+    { id: 'E-20260309-003', time: '2026-03-09 09:33', type: '號誌異常', status: '處理中', location: '正信路 / 信一路', severity: '高', cctvHexId: '6972615b', lat: 25.1313149, lng: 121.7615148 },
     // 已解除 (7)
-    { id: 'E-20260309-004', time: '2026-03-09 09:40', type: '人車事故', status: '已解除', location: '孝二路 / 忠四路', severity: '高', cctvHexId: '70cf7bac', lat: 25.12580, lng: 121.74180 },
-    { id: 'E-20260309-005', time: '2026-03-09 09:55', type: '緊急車輛通行', status: '已解除', location: '信二路 / 義四路', severity: '中', cctvHexId: '5dc09fe8', lat: 25.12680, lng: 121.74520 },
-    { id: 'E-20260309-006', time: '2026-03-09 10:02', type: '人車事故', status: '已解除', location: '仁二路 / 愛六路', severity: '低', cctvHexId: '05c7e2d9', lat: 25.12820, lng: 121.74250 },
-    { id: 'E-20260309-007', time: '2026-03-09 10:15', type: '未依規定讓車', status: '已解除', location: '安一路 / 西定路', severity: '低', cctvHexId: '108ffee4', lat: 25.12780, lng: 121.73750 },
-    { id: 'E-20260309-008', time: '2026-03-09 10:28', type: '違反號誌/標誌管制', status: '已解除', location: '忠一路 / 孝四路', severity: '中', cctvHexId: '10afbef6', lat: 25.12700, lng: 121.73950 },
-    { id: 'E-20260309-009', time: '2026-03-09 10:35', type: '人車事故', status: '已解除', location: '中正路/正濱路', severity: '中', cctvHexId: '8edd00b1', lat: 25.13350, lng: 121.75300 },
-    { id: 'E-20260309-010', time: '2026-03-09 10:42', type: '施工影響', status: '已解除', location: '中山二路36巷', severity: '低', cctvHexId: 'a22c3d9d', lat: 25.13200, lng: 121.74000 },
+    { id: 'E-20260309-004', time: '2026-03-09 09:40', type: '人車事故', status: '已解除', location: '孝二路 / 忠四路', severity: '高', cctvHexId: '70cf7bac', lat: 25.1283421, lng: 121.7392339 },
+    { id: 'E-20260309-005', time: '2026-03-09 09:55', type: '緊急車輛通行', status: '已解除', location: '信二路 / 義四路', severity: '中', cctvHexId: '5dc09fe8', lat: 25.1300303, lng: 121.7483585 },
+    { id: 'E-20260309-006', time: '2026-03-09 10:02', type: '人車事故', status: '已解除', location: '仁二路 / 愛六路', severity: '低', cctvHexId: '05c7e2d9', lat: 25.1274410, lng: 121.7472161 },
+    { id: 'E-20260309-007', time: '2026-03-09 10:15', type: '未依規定讓車', status: '已解除', location: '安一路 / 西定路', severity: '低', cctvHexId: '108ffee4', lat: 25.1316335, lng: 121.7354372 },
+    { id: 'E-20260309-008', time: '2026-03-09 10:28', type: '違反號誌/標誌管制', status: '已解除', location: '忠一路 / 孝四路', severity: '中', cctvHexId: '10afbef6', lat: 25.1315328, lng: 121.7396819 },
+    { id: 'E-20260309-009', time: '2026-03-09 10:35', type: '人車事故', status: '已解除', location: '中正路/正濱路', severity: '中', cctvHexId: '8edd00b1', lat: 25.1518792, lng: 121.7702085 },
+    // 中山二路36巷在 OSM 沒有獨立節點，取主路 中山二路 中段為代表座標。
+    { id: 'E-20260309-010', time: '2026-03-09 10:42', type: '施工影響', status: '已解除', location: '中山二路36巷', severity: '低', cctvHexId: 'a22c3d9d', lat: 25.1380386, lng: 121.7407311 },
     // 新事件 (5)
-    { id: 'E-20260309-011', time: '2026-03-09 10:50', type: '號誌異常', status: '新事件', location: '中山一路 / 忠一路', severity: '高', cctvHexId: '4e6b2984', lat: 25.12980, lng: 121.74050 },
-    { id: 'E-20260309-012', time: '2026-03-09 10:58', type: '施工影響', status: '新事件', location: '中山一路 / 成功二路', severity: '中', cctvHexId: 'bf0ed2e8', lat: 25.13080, lng: 121.73950 },
-    { id: 'E-20260309-013', time: '2026-03-09 11:05', type: '人車事故', status: '新事件', location: '仁一路 / 愛三路', severity: '高', cctvHexId: 'ae1a88db', lat: 25.12820, lng: 121.74300 },
-    { id: 'E-20260309-014', time: '2026-03-09 11:12', type: '緊急車輛通行', status: '新事件', location: '中正路 / 信一路', severity: '中', cctvHexId: '65d97b22', lat: 25.13150, lng: 121.74580 },
-    { id: 'E-20260309-015', time: '2026-03-09 11:20', type: '未依規定讓車', status: '新事件', location: '北寧路 / 祥豐路', severity: '低', cctvHexId: '582d9c95', lat: 25.13500, lng: 121.76200 },
+    { id: 'E-20260309-011', time: '2026-03-09 10:50', type: '號誌異常', status: '新事件', location: '中山一路 / 忠一路', severity: '高', cctvHexId: '4e6b2984', lat: 25.1323044, lng: 121.7384897 },
+    { id: 'E-20260309-012', time: '2026-03-09 10:58', type: '施工影響', status: '新事件', location: '中山一路 / 成功二路', severity: '中', cctvHexId: 'bf0ed2e8', lat: 25.1297205, lng: 121.7365855 },
+    { id: 'E-20260309-013', time: '2026-03-09 11:05', type: '人車事故', status: '新事件', location: '仁一路 / 愛三路', severity: '高', cctvHexId: 'ae1a88db', lat: 25.1304603, lng: 121.7439841 },
+    // 原 hexId 65d97b22 在 klcg.gov.tw 已 404；借用 DI-03 的 6972615b（CCTV 自標「正信路 / 信一路」，含信一路）以維持排名連動。
+    { id: 'E-20260309-014', time: '2026-03-09 11:12', type: '緊急車輛通行', status: '新事件', location: '中正路 / 信一路', severity: '中', cctvHexId: '6972615b', lat: 25.1312877, lng: 121.7434160 },
+    // 「祥豐路」在 OSM 中登錄為「祥豐街」，共用節點為 traffic_signals。
+    { id: 'E-20260309-015', time: '2026-03-09 11:20', type: '未依規定讓車', status: '新事件', location: '北寧路 / 祥豐路', severity: '低', cctvHexId: '582d9c95', lat: 25.1506602, lng: 121.7722491 },
   ] as IncidentItem[],
 
   // 座標經 OpenStreetMap Overpass API 驗證，為實際兩條路的交叉節點。
   dangerIntersections: [
     { id: 'DI-01', name: '忠一路 / 孝二路',   lat: 25.1309619, lng: 121.7409682, cctvHexId: '1c8ebc07', rank: 1 },
     { id: 'DI-02', name: '愛三路 / 仁五路',   lat: 25.1269448, lng: 121.7417032, cctvHexId: '24b2e625', rank: 2 },
-    { id: 'DI-03', name: '仁二路 / 愛三路',   lat: 25.1295154, lng: 121.7434003, cctvHexId: '6972615b', rank: 3 },
+    // hex 6972615b 的 CCTV 影像內嵌標籤是「正信路 / 信一路」(攝影機自標)。
+    // OSM 沒有 正信路/信一路 共用交叉節點，依約定改用 正信路 way 129080886 的中點。
+    { id: 'DI-03', name: '正信路 / 信一路',   lat: 25.1313149, lng: 121.7615148, cctvHexId: '6972615b', rank: 3 },
     { id: 'DI-04', name: '孝二路 / 忠四路',   lat: 25.1283421, lng: 121.7392339, cctvHexId: '70cf7bac', rank: 4 },
     { id: 'DI-05', name: '信二路 / 義四路',   lat: 25.1300303, lng: 121.7483585, cctvHexId: '5dc09fe8', rank: 5 },
     { id: 'DI-06', name: '安一路 / 西定路',   lat: 25.1316335, lng: 121.7354372, cctvHexId: '108ffee4', rank: 6 },
     { id: 'DI-07', name: '忠一路 / 孝四路',   lat: 25.1315328, lng: 121.7396819, cctvHexId: '10afbef6', rank: 7 },
     { id: 'DI-08', name: '中正路 / 正濱路',   lat: 25.1518792, lng: 121.7702085, cctvHexId: '8edd00b1', rank: 8 },
     { id: 'DI-09', name: '中山一路 / 忠一路', lat: 25.1323044, lng: 121.7384897, cctvHexId: '4e6b2984', rank: 9 },
-    { id: 'DI-10', name: '中正路 / 信一路',   lat: 25.1312877, lng: 121.7434160, cctvHexId: '65d97b22', rank: 10 },
+    // 原 DI-10「中正路 / 信一路 (65d97b22)」hexId 在 klcg.gov.tw 已 404，
+    // 改用驗證可連線的「仁二路 / 愛六路 (05c7e2d9)」。
+    { id: 'DI-10', name: '仁二路 / 愛六路',   lat: 25.1274410, lng: 121.7472161, cctvHexId: '05c7e2d9', rank: 10 },
   ] as DangerIntersection[],
+
+  // 無號誌路口排名：以 incidentId 串到既有事件，點擊時直接 navigate 到該事件。
+  unsignalizedRanks: [
+    { incidentId: 'E-20260309-007', name: '安一路 / 西定路', score: 3 },
+    { incidentId: 'E-20260309-014', name: '中正路 / 信一路', score: 2 },
+    { incidentId: 'E-20260309-001', name: '忠一路 / 孝二路', score: 2 },
+    { incidentId: 'E-20260309-005', name: '信二路 / 義四路', score: 1 },
+  ] as UnsignalizedRank[],
 
   deviceRates: [
     { name: 'CMS', rate: 84, color: 'var(--ok)' },
@@ -275,6 +299,10 @@ export const mockService = {
 
   getDangerIntersections(): DangerIntersection[] {
     return mockData.dangerIntersections
+  },
+
+  getUnsignalizedRanks(): UnsignalizedRank[] {
+    return mockData.unsignalizedRanks
   },
 
   getIntersectionChartData(intersectionId: string, range: ChartRange): IntersectionChartData {

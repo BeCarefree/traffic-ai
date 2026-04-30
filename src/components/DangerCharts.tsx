@@ -30,6 +30,22 @@ function niceMax(max: number): number {
   return rounded * unit
 }
 
+type RankTier = 'top' | 'mid' | 'low'
+
+// 依值大小分三階：前 20% top、再 30% mid、剩下 50% low
+function valueRankTiers(values: number[]): RankTier[] {
+  const n = values.length
+  const tiers = new Array<RankTier>(n).fill('low')
+  if (n === 0) return tiers
+  const sorted = values.map((v, i) => ({ v, i })).sort((a, b) => b.v - a.v)
+  const topCount = Math.max(1, Math.round(n * 0.2))
+  const midEnd = topCount + Math.max(1, Math.round(n * 0.3))
+  sorted.forEach(({ i }, rank) => {
+    tiers[i] = rank < topCount ? 'top' : rank < midEnd ? 'mid' : 'low'
+  })
+  return tiers
+}
+
 type ChartCardProps = {
   title: string
   range: ChartRange
@@ -66,6 +82,69 @@ function shouldShowXLabel(index: number, total: number): boolean {
   return index % every === 0 || index === total - 1
 }
 
+// 12px 字寬估算：ASCII ~7.2px、CJK ~13px
+const CHAR_W_ASCII = 7.2
+const CHAR_W_CJK = 13
+const LABEL_PAD_X = 7
+const LABEL_PAD_Y = 4
+const LABEL_LINE_H = 14
+
+function estimateTextWidth(text: string): number {
+  let w = 0
+  for (const ch of text) {
+    w += /[一-鿿]/.test(ch) ? CHAR_W_CJK : CHAR_W_ASCII
+  }
+  return w
+}
+
+type HoverLabelLine = { text: string; color: string }
+
+function HoverLabel({
+  x,
+  y,
+  lines,
+}: {
+  x: number
+  y: number
+  lines: HoverLabelLine[]
+}) {
+  const maxLineW = Math.max(...lines.map((l) => estimateTextWidth(l.text)))
+  const w = Math.max(maxLineW + LABEL_PAD_X * 2, 24)
+  const h = LABEL_LINE_H * lines.length + LABEL_PAD_Y * 2
+  // 防止超出 viewBox 左右邊界
+  const minX = w / 2 + 2
+  const maxX = CW - w / 2 - 2
+  const cx = Math.min(Math.max(x, minX), maxX)
+  // 上方放不下時往下擺（避免被 viewBox 切掉）
+  const above = y - h - 2 >= 0
+  const rectY = above ? y - h - 2 : y + 2
+
+  return (
+    <g pointerEvents="none">
+      <rect
+        x={cx - w / 2}
+        y={rectY}
+        width={w}
+        height={h}
+        rx={3}
+        className="chart-hover-label-bg"
+      />
+      {lines.map((l, i) => (
+        <text
+          key={i}
+          x={cx}
+          y={rectY + LABEL_PAD_Y + LABEL_LINE_H * (i + 1) - 3}
+          textAnchor="middle"
+          className="chart-hover-label-text"
+          fill={l.color}
+        >
+          {l.text}
+        </text>
+      ))}
+    </g>
+  )
+}
+
 // -----------------------------------------------------------------------------
 // Chart 1: Right-turn count — bar chart
 // -----------------------------------------------------------------------------
@@ -82,12 +161,15 @@ function BarChart({
   accentColor: string
   highlightColor: string
 }) {
+  const [hovered, setHovered] = useState<number | null>(null)
   const rawMax = Math.max(...data.map((d) => d.value), 1)
   const max = niceMax(rawMax)
   const bandWidth = PW / data.length
   const barWidth = Math.max(4, bandWidth * 0.55)
-  const recentFrom = Math.floor(data.length * 0.5)
-  const showAllLabels = data.length <= 12
+
+  const tiers = useMemo(() => valueRankTiers(data.map((d) => d.value)), [data])
+  const colorAt = (i: number) =>
+    tiers[i] === 'top' ? highlightColor : tiers[i] === 'mid' ? accentColor : baseColor
 
   return (
     <svg viewBox={`0 0 ${CW} ${CH}`} className="chart-svg" preserveAspectRatio="xMidYMid meet">
@@ -110,28 +192,12 @@ function BarChart({
         const bx = M.left + bandWidth * i + (bandWidth - barWidth) / 2
         const bh = (d.value / max) * PH
         const by = M.top + PH - bh
-        const fill = d.highlight
-          ? highlightColor
-          : i >= recentFrom
-            ? accentColor
-            : baseColor
-        const showLabel = showAllLabels || d.highlight
+        const fill = colorAt(i)
         const showX = shouldShowXLabel(i, data.length)
 
         return (
           <g key={i}>
             <rect x={bx} y={by} width={barWidth} height={bh} fill={fill} rx={2} />
-            {showLabel && (
-              <text
-                x={bx + barWidth / 2}
-                y={by - 4}
-                textAnchor="middle"
-                className="chart-bar-label"
-                fill={fill}
-              >
-                {d.value}
-              </text>
-            )}
             {showX && (
               <text
                 x={bx + barWidth / 2}
@@ -145,6 +211,33 @@ function BarChart({
           </g>
         )
       })}
+
+      {data.map((_, i) => (
+        <rect
+          key={`hit-${i}`}
+          x={M.left + bandWidth * i}
+          y={M.top}
+          width={bandWidth}
+          height={PH}
+          className="chart-hover-hit"
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(null)}
+        />
+      ))}
+
+      {hovered !== null && (() => {
+        const d = data[hovered]
+        const bh = (d.value / max) * PH
+        const by = M.top + PH - bh
+        const cx = M.left + bandWidth * hovered + bandWidth / 2
+        return (
+          <HoverLabel
+            x={cx}
+            y={by}
+            lines={[{ text: String(d.value), color: colorAt(hovered) }]}
+          />
+        )
+      })()}
     </svg>
   )
 }
@@ -153,18 +246,21 @@ function BarChart({
 // Chart 2: Speed (bar) + deceleration ratio (line) — combo chart, dual y-axis
 // -----------------------------------------------------------------------------
 function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
+  const [hovered, setHovered] = useState<number | null>(null)
   const rawSpeedMax = Math.max(...data.map((d) => d.speed), 1)
   const speedMax = niceMax(rawSpeedMax)
   const ratioMax = 100
   const bandWidth = PW / data.length
   const barWidth = Math.max(4, bandWidth * 0.55)
-  const recentFrom = Math.floor(data.length * 0.5)
-  const showAllLabels = data.length <= 12
 
   const baseGreen = '#d1d5db'
   const accentGreen = '#86efac'
   const highlightGreen = '#22c55e'
   const lineGreen = '#15803d'
+
+  const speedTiers = useMemo(() => valueRankTiers(data.map((d) => d.speed)), [data])
+  const speedColorAt = (i: number) =>
+    speedTiers[i] === 'top' ? highlightGreen : speedTiers[i] === 'mid' ? accentGreen : baseGreen
 
   const linePoints = data.map((d, i) => ({
     x: M.left + bandWidth * i + bandWidth / 2,
@@ -210,27 +306,11 @@ function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
         const bx = M.left + bandWidth * i + (bandWidth - barWidth) / 2
         const bh = (d.speed / speedMax) * PH
         const by = M.top + PH - bh
-        const fill = d.highlight
-          ? highlightGreen
-          : i >= recentFrom
-            ? accentGreen
-            : baseGreen
-        const showLabel = showAllLabels || d.highlight
+        const fill = speedColorAt(i)
         const showX = shouldShowXLabel(i, data.length)
         return (
           <g key={i}>
             <rect x={bx} y={by} width={barWidth} height={bh} fill={fill} rx={2} />
-            {showLabel && (
-              <text
-                x={bx + barWidth / 2}
-                y={by - 4}
-                textAnchor="middle"
-                className="chart-bar-label"
-                fill={highlightGreen}
-              >
-                {d.speed}
-              </text>
-            )}
             {showX && (
               <text
                 x={bx + barWidth / 2}
@@ -251,24 +331,42 @@ function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
           key={p.i}
           cx={p.x}
           cy={p.y}
-          r={p.d.highlight ? 4 : 2.5}
+          r={hovered === p.i ? 5 : p.d.highlight ? 4 : 2.5}
           fill={lineGreen}
         />
       ))}
-      {linePoints
-        .filter((p) => showAllLabels || p.d.highlight)
-        .map((p) => (
-          <text
-            key={`rl-${p.i}`}
-            x={p.x}
-            y={p.y - 8}
-            textAnchor="middle"
-            className="chart-line-label"
-            fill={lineGreen}
-          >
-            {p.d.ratio}
-          </text>
-        ))}
+
+      {data.map((_, i) => (
+        <rect
+          key={`hit-${i}`}
+          x={M.left + bandWidth * i}
+          y={M.top}
+          width={bandWidth}
+          height={PH}
+          className="chart-hover-hit"
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(null)}
+        />
+      ))}
+
+      {hovered !== null && (() => {
+        const d = data[hovered]
+        const cx = M.left + bandWidth * hovered + bandWidth / 2
+        const barTopY = M.top + PH - (d.speed / speedMax) * PH
+        const lineY = M.top + PH - (d.ratio / ratioMax) * PH
+        // 把 tooltip 擺在兩者上緣較高（y 較小）的位置之上，確保不會擋到任一視覺元素
+        const anchorY = Math.min(barTopY, lineY)
+        return (
+          <HoverLabel
+            x={cx}
+            y={anchorY}
+            lines={[
+              { text: `速度 ${d.speed}`, color: highlightGreen },
+              { text: `減速 ${d.ratio}%`, color: lineGreen },
+            ]}
+          />
+        )
+      })()}
     </svg>
   )
 }
@@ -283,11 +381,10 @@ function LineChart({
   data: PedestrianViolationPoint[]
   unit: string
 }) {
+  const [hovered, setHovered] = useState<number | null>(null)
   const rawMax = Math.max(...data.map((d) => d.value), 1)
   const max = niceMax(Math.max(rawMax, 4))
   const bandWidth = PW / data.length
-  const showAllLabels = data.length <= 12
-  const peakValue = Math.max(...data.map((x) => x.value))
 
   const lineColor = '#eab308'
   const areaColor = 'rgba(234, 179, 8, 0.18)'
@@ -330,24 +427,10 @@ function LineChart({
           key={p.i}
           cx={p.x}
           cy={p.y}
-          r={p.d.highlight ? 4 : 2.5}
+          r={hovered === p.i ? 5 : p.d.highlight ? 4 : 2.5}
           fill={lineColor}
         />
       ))}
-      {points
-        .filter((p) => showAllLabels || p.d.highlight || p.d.value === peakValue)
-        .map((p) => (
-          <text
-            key={`pl-${p.i}`}
-            x={p.x}
-            y={p.y - 8}
-            textAnchor="middle"
-            className="chart-line-label"
-            fill={lineColor}
-          >
-            {p.d.value}
-          </text>
-        ))}
 
       {data.map((d, i) => {
         const bx = M.left + bandWidth * i + bandWidth / 2
@@ -365,6 +448,27 @@ function LineChart({
           </text>
         )
       })}
+
+      {data.map((_, i) => (
+        <rect
+          key={`hit-${i}`}
+          x={M.left + bandWidth * i}
+          y={M.top}
+          width={bandWidth}
+          height={PH}
+          className="chart-hover-hit"
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(null)}
+        />
+      ))}
+
+      {hovered !== null && (
+        <HoverLabel
+          x={points[hovered].x}
+          y={points[hovered].y}
+          lines={[{ text: String(points[hovered].d.value), color: lineColor }]}
+        />
+      )}
     </svg>
   )
 }

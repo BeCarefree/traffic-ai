@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DangerIntersection, DashboardTab, IncidentItem } from '../service/mockService'
 import { mockService } from '../service/mockService'
 import { DangerCharts } from '../components/DangerCharts'
+import { checkCctvBatch, clearCctvCacheFor } from '../utils/cctvCheck'
+import type { CancelToken, CheckProgress } from '../utils/cctvCheck'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -13,35 +15,11 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
 
 const STATUS_ORDER: IncidentItem['status'][] = ['處理中', '已解除', '新事件']
 
-const KEELUNG_CENTER: [number, number] = [25.1280, 121.7415]
+// 取自 9 個基隆市區危險路口的幾何中心（DI-08 在八斗子另以平移檢視）
+const KEELUNG_CENTER: [number, number] = [25.1303, 121.7415]
 const DEFAULT_ZOOM = 16
-const CCTV_CHECK_TIMEOUT = 8000
-
-/** 檢測單一 CCTV 影像是否可載入 */
-function checkCctvImage(hexId: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const img = new Image()
-    img.referrerPolicy = 'no-referrer'
-
-    const timer = setTimeout(() => {
-      img.onload = null
-      img.onerror = null
-      img.src = ''
-      resolve(false)
-    }, CCTV_CHECK_TIMEOUT)
-
-    img.onload = () => {
-      clearTimeout(timer)
-      resolve(true)
-    }
-    img.onerror = () => {
-      clearTimeout(timer)
-      resolve(false)
-    }
-
-    img.src = `https://cctv.klcg.gov.tw/${hexId}`
-  })
-}
+const FLY_ZOOM = 17
+const CCTV_CONCURRENCY = 5
 
 type ActiveTarget =
   | { kind: 'incident'; item: IncidentItem }
@@ -49,16 +27,22 @@ type ActiveTarget =
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('dangerIntersection')
-  const allIncidents = mockService.getIncidents()
-  const allDangerIntersections = mockService.getDangerIntersections()
+  const allIncidents = useMemo(() => mockService.getIncidents(), [])
+  const allDangerIntersections = useMemo(() => mockService.getDangerIntersections(), [])
 
   const isDangerTab = activeTab === 'dangerIntersection'
 
-  // CCTV availability (run both probes in parallel on mount)
+  // CCTV 連線檢查狀態
   const [incidentChecking, setIncidentChecking] = useState(true)
+  const [incidentProgress, setIncidentProgress] = useState<CheckProgress>({ done: 0, total: 0 })
   const [availableIncidents, setAvailableIncidents] = useState<IncidentItem[]>([])
+
   const [dangerChecking, setDangerChecking] = useState(true)
+  const [dangerProgress, setDangerProgress] = useState<CheckProgress>({ done: 0, total: 0 })
   const [availableIntersections, setAvailableIntersections] = useState<DangerIntersection[]>([])
+
+  const incidentCancelRef = useRef<CancelToken>({ cancelled: false })
+  const dangerCancelRef = useRef<CancelToken>({ cancelled: false })
 
   // Selections per flow
   const [selectedIncident, setSelectedIncident] = useState<IncidentItem | null>(null)
@@ -115,48 +99,76 @@ export default function DashboardPage() {
     : null
 
   const cctvImageUrl = activeTarget
-    ? `https://cctv.klcg.gov.tw/${activeTarget.item.cctvHexId}`
+    ? `https://cctv.klcg.gov.tw/${activeTarget.item.cctvHexId}/snapshot`
     : null
 
-  // Step 1a: Check incident CCTVs on mount
-  useEffect(() => {
-    let cancelled = false
-    async function checkAll() {
-      const results = await Promise.allSettled(
-        allIncidents.map(i => checkCctvImage(i.cctvHexId)),
-      )
-      if (cancelled) return
-      const available = allIncidents.filter((_, idx) => {
-        const r = results[idx]
-        return r.status === 'fulfilled' && r.value === true
-      })
+  // Step 1a: Probe incident CCTVs (callable for retry)
+  const probeIncidents = useCallback(() => {
+    incidentCancelRef.current.cancelled = true
+    const cancel: CancelToken = { cancelled: false }
+    incidentCancelRef.current = cancel
+
+    setIncidentChecking(true)
+    setIncidentProgress({ done: 0, total: allIncidents.length })
+
+    checkCctvBatch(allIncidents, {
+      concurrency: CCTV_CONCURRENCY,
+      cancel,
+      onProgress: (p) => {
+        if (!cancel.cancelled) setIncidentProgress(p)
+      },
+    }).then((results) => {
+      if (cancel.cancelled) return
+      const available = allIncidents.filter((_, idx) => results[idx])
       setAvailableIncidents(available)
       setIncidentChecking(false)
-    }
-    checkAll()
-    return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    })
+  }, [allIncidents])
 
-  // Step 1b: Check danger-intersection CCTVs on mount
-  useEffect(() => {
-    let cancelled = false
-    async function checkAll() {
-      const results = await Promise.allSettled(
-        allDangerIntersections.map(d => checkCctvImage(d.cctvHexId)),
-      )
-      if (cancelled) return
-      const available = allDangerIntersections.filter((_, idx) => {
-        const r = results[idx]
-        return r.status === 'fulfilled' && r.value === true
-      })
+  // Step 1b: Probe danger-intersection CCTVs (callable for retry)
+  const probeIntersections = useCallback(() => {
+    dangerCancelRef.current.cancelled = true
+    const cancel: CancelToken = { cancelled: false }
+    dangerCancelRef.current = cancel
+
+    setDangerChecking(true)
+    setDangerProgress({ done: 0, total: allDangerIntersections.length })
+
+    checkCctvBatch(allDangerIntersections, {
+      concurrency: CCTV_CONCURRENCY,
+      cancel,
+      onProgress: (p) => {
+        if (!cancel.cancelled) setDangerProgress(p)
+      },
+    }).then((results) => {
+      if (cancel.cancelled) return
+      const available = allDangerIntersections.filter((_, idx) => results[idx])
       setAvailableIntersections(available)
       setDangerChecking(false)
-    }
-    checkAll()
-    return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    })
+  }, [allDangerIntersections])
+
+  // 啟動兩個檢測（mount 時各跑一次，cleanup 取消尚未完成的請求）
+  useEffect(() => {
+    probeIncidents()
+    return () => { incidentCancelRef.current.cancelled = true }
+  }, [probeIncidents])
+
+  useEffect(() => {
+    probeIntersections()
+    return () => { dangerCancelRef.current.cancelled = true }
+  }, [probeIntersections])
+
+  // 「重新檢查」清除快取後重新 probe
+  const handleRecheckIntersections = useCallback(() => {
+    clearCctvCacheFor(allDangerIntersections.map(d => d.cctvHexId))
+    probeIntersections()
+  }, [allDangerIntersections, probeIntersections])
+
+  const handleRecheckIncidents = useCallback(() => {
+    clearCctvCacheFor(allIncidents.map(i => i.cctvHexId))
+    probeIncidents()
+  }, [allIncidents, probeIncidents])
 
   // Step 2: Initialize map (once)
   useEffect(() => {
@@ -285,7 +297,7 @@ export default function DashboardPage() {
       ? activeTarget.item.location
       : activeTarget.item.name
 
-    mapRef.current.flyTo([lat, lng], 18, { duration: 0.8 })
+    mapRef.current.flyTo([lat, lng], FLY_ZOOM, { duration: 0.8 })
 
     const onMoveEnd = () => {
       mapRef.current?.invalidateSize()
@@ -325,6 +337,16 @@ export default function DashboardPage() {
       .slice(0, 5)
       .map(d => ({ ...d, available: availableIds.has(d.id) }))
   }, [isDangerTab, allDangerIntersections, availableIntersections])
+
+  // 無號誌路口排名：把每筆對到 availableIncidents 中的事件，沒對到就標 disabled。
+  const unsignalizedRankList = useMemo(() => {
+    const ranks = mockService.getUnsignalizedRanks()
+    const incidentMap = new Map(availableIncidents.map(i => [i.id, i]))
+    return ranks.map(r => ({
+      ...r,
+      incident: incidentMap.get(r.incidentId) ?? null,
+    }))
+  }, [availableIncidents])
 
   return (
     <section className="page-grid">
@@ -416,13 +438,32 @@ export default function DashboardPage() {
               <div className="card">
                 <div className="cctv-checking">
                   <div className="cctv-checking-spinner" />
-                  <span>正在檢測危險路口 CCTV 連線...</span>
+                  <span>
+                    正在檢測危險路口 CCTV 連線... {dangerProgress.done}/{dangerProgress.total}
+                  </span>
+                  <div className="cctv-progress-bar">
+                    <div
+                      className="cctv-progress-fill"
+                      style={{
+                        width: dangerProgress.total
+                          ? `${(dangerProgress.done / dangerProgress.total) * 100}%`
+                          : '0%',
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ) : availableIntersections.length === 0 ? (
               <div className="card">
                 <div className="cctv-checking">
                   <span>目前沒有可用的危險路口 CCTV 即時影像</span>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleRecheckIntersections}
+                  >
+                    重新檢查
+                  </button>
                 </div>
               </div>
             ) : chartsIntersectionId ? (
@@ -456,11 +497,30 @@ export default function DashboardPage() {
               {incidentChecking ? (
                 <div className="cctv-checking">
                   <div className="cctv-checking-spinner" />
-                  <span>正在檢測 CCTV 連線狀態...</span>
+                  <span>
+                    正在檢測 CCTV 連線狀態... {incidentProgress.done}/{incidentProgress.total}
+                  </span>
+                  <div className="cctv-progress-bar">
+                    <div
+                      className="cctv-progress-fill"
+                      style={{
+                        width: incidentProgress.total
+                          ? `${(incidentProgress.done / incidentProgress.total) * 100}%`
+                          : '0%',
+                      }}
+                    />
+                  </div>
                 </div>
               ) : availableIncidents.length === 0 ? (
                 <div className="cctv-checking">
                   <span>目前沒有可用的 CCTV 即時影像</span>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleRecheckIncidents}
+                  >
+                    重新檢查
+                  </button>
                 </div>
               ) : (
                 <div className="incident-list">
@@ -530,15 +590,26 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="card">
-              <h3>{activeTab === 'unsignalizedIntersection' ? '無號誌路口排名' : '危險路口排名'}</h3>
-              <ol className="rank-list">
-                <li>安一路 / 西定路 - 3</li>
-                <li>中正路 / 信一路 - 2</li>
-                <li>忠一路 / 孝二路 - 2</li>
-                <li>信二路 / 義四路 - 1</li>
-              </ol>
-            </div>
+            {activeTab === 'unsignalizedIntersection' && (
+              <div className="card">
+                <h3>無號誌路口排名</h3>
+                <ol className="rank-list">
+                  {unsignalizedRankList.map(r => (
+                    <li key={r.incidentId}>
+                      <button
+                        type="button"
+                        className={'rank-link' + (!r.incident ? ' disabled' : '')}
+                        disabled={!r.incident}
+                        onClick={() => r.incident && handleNavigate(r.incident)}
+                        title={r.incident ? '點擊切換到此路口' : 'CCTV 目前無法連線'}
+                      >
+                        {r.name} - {r.score}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </>
         )}
       </div>

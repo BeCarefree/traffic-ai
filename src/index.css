@@ -539,6 +539,23 @@ input {
   animation: spinnerRotate 0.8s linear infinite;
 }
 
+.cctv-progress-bar {
+  width: 80%;
+  max-width: 240px;
+  height: 6px;
+  border-radius: 999px;
+  background: #1e293b;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.cctv-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #22d3ee);
+  border-radius: 999px;
+  transition: width 0.25s ease;
+}
+
 @keyframes spinnerRotate {
   to { transform: rotate(360deg); }
 }
@@ -948,12 +965,6 @@ input {
   font-family: 'Fira Code', monospace;
 }
 
-.chart-bar-label {
-  font-size: 12px;
-  font-weight: 600;
-  font-family: 'Fira Code', monospace;
-}
-
 .chart-line {
   fill: none;
   stroke-width: 2;
@@ -961,7 +972,18 @@ input {
   stroke-linejoin: round;
 }
 
-.chart-line-label {
+.chart-hover-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.chart-hover-label-bg {
+  fill: rgba(15, 23, 42, 0.92);
+  stroke: rgba(148, 163, 184, 0.35);
+  stroke-width: 1;
+}
+
+.chart-hover-label-text {
   font-size: 12px;
   font-weight: 600;
   font-family: 'Fira Code', monospace;
