@@ -40,6 +40,20 @@ export type UnsignalizedRank = {
 
 export type ChartRange = '12h' | '24h' | '7d'
 
+export type SignalLightColor = 'red' | 'yellow' | 'green'
+export type SignalMode = '手動' | '自動' | '離線'
+export type SignalDirection = 'n' | 's' | 'e' | 'w'
+
+export type SignalInfo = {
+  tcId: string
+  mode: SignalMode
+  lights: Record<SignalDirection, { active: SignalLightColor }>
+  location: string
+  lat: number
+  lng: number
+  lastOnline: string
+}
+
 export type RightTurnCountPoint = { label: string; value: number; highlight: boolean }
 export type RightTurnSpeedPoint = { label: string; speed: number; ratio: number; highlight: boolean }
 export type PedestrianViolationPoint = { label: string; value: number; highlight: boolean }
@@ -283,6 +297,52 @@ function buildChartData(intersectionId: string, range: ChartRange): Intersection
   return { rightTurnCount, rightTurnSpeed, pedestrianViolation }
 }
 
+// 依事件 id 推導出固定的 signal info — 同一路口每次都一樣，不同路口會變化。
+function buildSignalInfo(incident: IncidentItem): SignalInfo {
+  const rng = makeRng(`signal|${incident.id}`)
+  const tcNumber = Math.floor(rng() * 900) + 100 // 100..999
+  const tcId = `TC${String(tcNumber).padStart(3, '0')}`
+
+  // 5% 離線、25% 手動、其餘自動
+  const modeRoll = rng()
+  const mode: SignalMode = modeRoll < 0.05 ? '離線' : modeRoll < 0.30 ? '手動' : '自動'
+
+  // 南北 vs 東西 互補：一邊綠燈 → 另一邊紅燈；偶爾出現黃燈過渡
+  const nsPhase = rng()
+  const ewActive: SignalLightColor =
+    nsPhase < 0.55 ? 'red' : nsPhase < 0.70 ? 'yellow' : 'green'
+  const nsActive: SignalLightColor =
+    ewActive === 'red' ? 'green' : ewActive === 'green' ? 'red' : 'yellow'
+
+  // 各方向獨立小擾動（同向左右常一致，但對向偶爾差一相）
+  const sActive: SignalLightColor = rng() < 0.15 ? 'yellow' : nsActive
+  const wActive: SignalLightColor = rng() < 0.15 ? 'yellow' : ewActive
+
+  // 最後上線時間：以事件時間為基準向前隨機 0..30 分鐘
+  const baseTime = new Date(incident.time.replace(' ', 'T') + ':00')
+  const offsetMin = Math.floor(rng() * 30)
+  baseTime.setMinutes(baseTime.getMinutes() - offsetMin)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const lastOnline =
+    `${baseTime.getFullYear()}-${pad(baseTime.getMonth() + 1)}-${pad(baseTime.getDate())} ` +
+    `${pad(baseTime.getHours())}:${pad(baseTime.getMinutes())}`
+
+  return {
+    tcId,
+    mode,
+    lights: {
+      n: { active: nsActive },
+      s: { active: sActive },
+      e: { active: ewActive },
+      w: { active: wActive },
+    },
+    location: incident.location,
+    lat: incident.lat,
+    lng: incident.lng,
+    lastOnline,
+  }
+}
+
 // Mock service functions
 export const mockService = {
   getSidebarItems(): SidebarItem[] {
@@ -295,6 +355,12 @@ export const mockService = {
 
   getIncidents(): IncidentItem[] {
     return mockData.incidents
+  },
+
+  getSignalInfo(incidentId: string): SignalInfo | null {
+    const incident = mockData.incidents.find(i => i.id === incidentId)
+    if (!incident) return null
+    return buildSignalInfo(incident)
   },
 
   getDangerIntersections(): DangerIntersection[] {

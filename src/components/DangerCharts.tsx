@@ -6,6 +6,7 @@ import type {
   RightTurnSpeedPoint,
 } from '../service/mockService'
 import { mockService } from '../service/mockService'
+import { useLanguage } from '../i18n/languageContext'
 
 const RANGES: { key: ChartRange; label: string }[] = [
   { key: '12h', label: '近12小時' },
@@ -54,6 +55,7 @@ type ChartCardProps = {
 }
 
 function ChartCard({ title, range, onRangeChange, children }: ChartCardProps) {
+  const { t } = useLanguage()
   return (
     <div className="card chart-card">
       <div className="chart-header">
@@ -65,7 +67,7 @@ function ChartCard({ title, range, onRangeChange, children }: ChartCardProps) {
               className={'chart-range-tab' + (range === r.key ? ' active' : '')}
               onClick={() => onRangeChange(r.key)}
             >
-              {r.label}
+              {t(r.label)}
             </button>
           ))}
         </div>
@@ -75,19 +77,13 @@ function ChartCard({ title, range, onRangeChange, children }: ChartCardProps) {
   )
 }
 
-// X-axis label decimator: for dense ranges (24h), show every Nth label.
-function shouldShowXLabel(index: number, total: number): boolean {
-  if (total <= 12) return true
-  const every = Math.ceil(total / 12)
-  return index % every === 0 || index === total - 1
-}
-
 // 12px 字寬估算：ASCII ~7.2px、CJK ~13px
 const CHAR_W_ASCII = 7.2
 const CHAR_W_CJK = 13
 const LABEL_PAD_X = 7
 const LABEL_PAD_Y = 4
 const LABEL_LINE_H = 14
+const X_LABEL_GAP = 8 // 相鄰 X 軸標籤的最小間隔
 
 function estimateTextWidth(text: string): number {
   let w = 0
@@ -95,6 +91,22 @@ function estimateTextWidth(text: string): number {
     w += /[一-鿿]/.test(ch) ? CHAR_W_CJK : CHAR_W_ASCII
   }
   return w
+}
+
+// X-axis label decimator: 依實際字寬決定要顯示哪幾個索引（避免重疊）。
+// 寬標籤（如 "06:00"）會自動稀疏化；窄標籤（如 "00"）則盡量全顯示。
+function pickXLabelIndices(labels: string[], availableWidth: number): Set<number> {
+  const total = labels.length
+  if (total === 0) return new Set()
+  const maxLabelW = Math.max(...labels.map(estimateTextWidth))
+  const slot = maxLabelW + X_LABEL_GAP
+  const capacity = Math.max(2, Math.floor(availableWidth / slot))
+  if (total <= capacity) return new Set(labels.map((_, i) => i))
+  const every = Math.ceil(total / capacity)
+  const result = new Set<number>()
+  for (let i = 0; i < total; i += every) result.add(i)
+  result.add(total - 1) // 永遠保留最後一筆
+  return result
 }
 
 type HoverLabelLine = { text: string; color: string }
@@ -170,6 +182,10 @@ function BarChart({
   const tiers = useMemo(() => valueRankTiers(data.map((d) => d.value)), [data])
   const colorAt = (i: number) =>
     tiers[i] === 'top' ? highlightColor : tiers[i] === 'mid' ? accentColor : baseColor
+  const shownXLabels = useMemo(
+    () => pickXLabelIndices(data.map((d) => d.label), PW),
+    [data],
+  )
 
   return (
     <svg viewBox={`0 0 ${CW} ${CH}`} className="chart-svg" preserveAspectRatio="xMidYMid meet">
@@ -193,7 +209,7 @@ function BarChart({
         const bh = (d.value / max) * PH
         const by = M.top + PH - bh
         const fill = colorAt(i)
-        const showX = shouldShowXLabel(i, data.length)
+        const showX = shownXLabels.has(i)
 
         return (
           <g key={i}>
@@ -246,6 +262,7 @@ function BarChart({
 // Chart 2: Speed (bar) + deceleration ratio (line) — combo chart, dual y-axis
 // -----------------------------------------------------------------------------
 function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
+  const { t } = useLanguage()
   const [hovered, setHovered] = useState<number | null>(null)
   const rawSpeedMax = Math.max(...data.map((d) => d.speed), 1)
   const speedMax = niceMax(rawSpeedMax)
@@ -261,6 +278,10 @@ function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
   const speedTiers = useMemo(() => valueRankTiers(data.map((d) => d.speed)), [data])
   const speedColorAt = (i: number) =>
     speedTiers[i] === 'top' ? highlightGreen : speedTiers[i] === 'mid' ? accentGreen : baseGreen
+  const shownXLabels = useMemo(
+    () => pickXLabelIndices(data.map((d) => d.label), PW),
+    [data],
+  )
 
   const linePoints = data.map((d, i) => ({
     x: M.left + bandWidth * i + bandWidth / 2,
@@ -272,6 +293,9 @@ function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
     .map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`))
     .join(' ')
 
+  // 動態定位第二組圖例（避免英文較長時與第一組標籤重疊）
+  const legendCircleX = 13 + estimateTextWidth(t('車輛速度')) + 12
+
   return (
     <svg viewBox={`0 0 ${CW} ${CH}`} className="chart-svg" preserveAspectRatio="xMidYMid meet">
       <text x={6} y={M.top - 8} className="chart-axis-unit">m/s</text>
@@ -280,9 +304,9 @@ function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
       {/* legend */}
       <g className="chart-legend" transform={`translate(${M.left + 8}, ${M.top - 14})`}>
         <rect x={0} y={-6} width={9} height={9} fill={baseGreen} rx={1.5} />
-        <text x={13} y={2} className="chart-legend-text">車輛速度</text>
-        <circle cx={60} cy={-1.5} r={3.5} fill={lineGreen} />
-        <text x={68} y={2} className="chart-legend-text">減速比例</text>
+        <text x={13} y={2} className="chart-legend-text">{t('車輛速度')}</text>
+        <circle cx={legendCircleX} cy={-1.5} r={3.5} fill={lineGreen} />
+        <text x={legendCircleX + 8} y={2} className="chart-legend-text">{t('減速比例')}</text>
       </g>
 
       {Array.from({ length: TICKS + 1 }).map((_, i) => {
@@ -307,7 +331,7 @@ function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
         const bh = (d.speed / speedMax) * PH
         const by = M.top + PH - bh
         const fill = speedColorAt(i)
-        const showX = shouldShowXLabel(i, data.length)
+        const showX = shownXLabels.has(i)
         return (
           <g key={i}>
             <rect x={bx} y={by} width={barWidth} height={bh} fill={fill} rx={2} />
@@ -361,8 +385,8 @@ function ComboChart({ data }: { data: RightTurnSpeedPoint[] }) {
             x={cx}
             y={anchorY}
             lines={[
-              { text: `速度 ${d.speed}`, color: highlightGreen },
-              { text: `減速 ${d.ratio}%`, color: lineGreen },
+              { text: `${t('速度')} ${d.speed}`, color: highlightGreen },
+              { text: `${t('減速')} ${d.ratio}%`, color: lineGreen },
             ]}
           />
         )
@@ -388,6 +412,11 @@ function LineChart({
 
   const lineColor = '#eab308'
   const areaColor = 'rgba(234, 179, 8, 0.18)'
+
+  const shownXLabels = useMemo(
+    () => pickXLabelIndices(data.map((d) => d.label), PW),
+    [data],
+  )
 
   const points = data.map((d, i) => ({
     x: M.left + bandWidth * i + bandWidth / 2,
@@ -434,7 +463,7 @@ function LineChart({
 
       {data.map((d, i) => {
         const bx = M.left + bandWidth * i + bandWidth / 2
-        const show = shouldShowXLabel(i, data.length)
+        const show = shownXLabels.has(i)
         if (!show) return null
         return (
           <text
@@ -481,6 +510,7 @@ export type DangerChartsProps = {
 }
 
 export function DangerCharts({ intersectionId }: DangerChartsProps) {
+  const { t } = useLanguage()
   const [countRange, setCountRange] = useState<ChartRange>('12h')
   const [speedRange, setSpeedRange] = useState<ChartRange>('12h')
   const [pedRange, setPedRange] = useState<ChartRange>('12h')
@@ -500,10 +530,10 @@ export function DangerCharts({ intersectionId }: DangerChartsProps) {
 
   return (
     <>
-      <ChartCard title="右轉車數量" range={countRange} onRangeChange={setCountRange}>
+      <ChartCard title={t('右轉車數量')} range={countRange} onRangeChange={setCountRange}>
         <BarChart
           data={countData}
-          unit="次數"
+          unit={t('次數')}
           baseColor="#64748b"
           accentColor="#a855f7"
           highlightColor="#d946ef"
@@ -511,15 +541,15 @@ export function DangerCharts({ intersectionId }: DangerChartsProps) {
       </ChartCard>
 
       <ChartCard
-        title="右轉車輛速度與減速比例"
+        title={t('右轉車輛速度與減速比例')}
         range={speedRange}
         onRangeChange={setSpeedRange}
       >
         <ComboChart data={speedData} />
       </ChartCard>
 
-      <ChartCard title="未禮讓行人次數" range={pedRange} onRangeChange={setPedRange}>
-        <LineChart data={pedData} unit="次" />
+      <ChartCard title={t('未禮讓行人次數')} range={pedRange} onRangeChange={setPedRange}>
+        <LineChart data={pedData} unit={t('次')} />
       </ChartCard>
     </>
   )

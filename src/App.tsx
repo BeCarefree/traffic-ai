@@ -1,5 +1,7 @@
 import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { mockService } from './service/mockService'
+import { LanguageProvider } from './i18n/LanguageProvider'
+import { useLanguage } from './i18n/languageContext'
 import DashboardPage from './pages/Dashboard'
 import DevicesPage from './pages/Devices'
 import IncidentResponsePage from './pages/IncidentResponse'
@@ -7,9 +9,32 @@ import CmsPage from './pages/Cms'
 import DataMonitorPage from './pages/DataMonitor'
 import './index.css'
 
+function LanguageToggle() {
+  const { lang, setLang } = useLanguage()
+  return (
+    <div className="lang-toggle" role="group" aria-label="Language switcher">
+      <button
+        type="button"
+        className={'lang-toggle-btn' + (lang === 'zh' ? ' active' : '')}
+        onClick={() => setLang('zh')}
+      >
+        中
+      </button>
+      <button
+        type="button"
+        className={'lang-toggle-btn' + (lang === 'en' ? ' active' : '')}
+        onClick={() => setLang('en')}
+      >
+        EN
+      </button>
+    </div>
+  )
+}
+
 function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t } = useLanguage()
   const sidebarItems = mockService.getSidebarItems()
   const deviceRates = mockService.getDeviceRates()
 
@@ -46,7 +71,7 @@ function AppLayout() {
               className={item.key === currentPage ? 'nav-btn active' : 'nav-btn'}
               onClick={() => handleNavClick(item.key)}
             >
-              {item.label}
+              {t(item.label)}
             </button>
           ))}
         </nav>
@@ -54,14 +79,17 @@ function AppLayout() {
 
       <main className="main-content">
         <header className="topbar">
-          <h1>交通控制決策輔助平台</h1>
-          <div className="rate-strip">
-            {deviceRates.map((item) => (
-              <div key={item.name} className="rate-item">
-                <span>{item.name}</span>
-                <strong style={{ color: item.color }}>{item.rate}%</strong>
-              </div>
-            ))}
+          <h1>{t('交通控制決策輔助平台')}</h1>
+          <div className="topbar-right">
+            <div className="rate-strip">
+              {deviceRates.map((item) => (
+                <div key={item.name} className="rate-item">
+                  <span>{item.name}</span>
+                  <strong style={{ color: item.color }}>{item.rate}%</strong>
+                </div>
+              ))}
+            </div>
+            <LanguageToggle />
           </div>
         </header>
 
@@ -80,9 +108,11 @@ function AppLayout() {
 
 function App() {
   return (
-    <HashRouter>
-      <AppLayout />
-    </HashRouter>
+    <LanguageProvider>
+      <HashRouter>
+        <AppLayout />
+      </HashRouter>
+    </LanguageProvider>
   )
 }
 

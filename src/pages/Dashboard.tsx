@@ -2,15 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DangerIntersection, DashboardTab, IncidentItem } from '../service/mockService'
 import { mockService } from '../service/mockService'
 import { DangerCharts } from '../components/DangerCharts'
+import { SignalInfoCard } from '../components/SignalInfoCard'
+import { StreamingCctvImage } from '../components/StreamingCctvImage'
+import { useLanguage } from '../i18n/languageContext'
 import { checkCctvBatch, clearCctvCacheFor } from '../utils/cctvCheck'
 import type { CancelToken, CheckProgress } from '../utils/cctvCheck'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-const STATUS_LABEL: Record<string, { label: string; className: string }> = {
-  '處理中': { label: '處理中', className: 'processing' },
-  '已解除': { label: '已解除', className: 'resolved' },
-  '新事件': { label: '新事件', className: 'new' },
+const STATUS_CLASSNAME: Record<IncidentItem['status'], string> = {
+  '處理中': 'processing',
+  '已解除': 'resolved',
+  '新事件': 'new',
 }
 
 const STATUS_ORDER: IncidentItem['status'][] = ['處理中', '已解除', '新事件']
@@ -26,6 +29,7 @@ type ActiveTarget =
   | { kind: 'intersection'; item: DangerIntersection }
 
 export default function DashboardPage() {
+  const { t, lang } = useLanguage()
   const [activeTab, setActiveTab] = useState<DashboardTab>('dangerIntersection')
   const allIncidents = useMemo(() => mockService.getIncidents(), [])
   const allDangerIntersections = useMemo(() => mockService.getDangerIntersections(), [])
@@ -50,6 +54,8 @@ export default function DashboardPage() {
   const [selectedIntersection, setSelectedIntersection] = useState<DangerIntersection | null>(null)
 
   const [cctvExpanded, setCctvExpanded] = useState(false)
+  // 動態號控 tab 中，路口號誌資訊卡的螢幕像素座標（隨地圖 pan/zoom 即時更新）
+  const [signalCardPos, setSignalCardPos] = useState<{ x: number; y: number } | null>(null)
 
   const dashboardTabs = mockService.getDashboardTabs()
 
@@ -92,6 +98,7 @@ export default function DashboardPage() {
     return navigatedIncident ? { kind: 'incident', item: navigatedIncident } : null
   }, [isDangerTab, selectedIntersection, navigatedIncident])
 
+  // 路口名字保留中文（不翻譯）
   const activeLabel = activeTarget
     ? activeTarget.kind === 'incident'
       ? activeTarget.item.location
@@ -225,7 +232,7 @@ export default function DashboardPage() {
         })
 
         const marker = L.marker([d.lat, d.lng], { icon })
-          .bindTooltip(`${d.name}（排名 #${d.rank}）`, {
+          .bindTooltip(`${d.name}（${t('排名')} #${d.rank}）`, {
             permanent: false,
             direction: 'top',
             offset: [0, -14],
@@ -279,7 +286,7 @@ export default function DashboardPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDangerTab, availableIntersections, dangerChecking, availableIncidents, incidentChecking])
+  }, [isDangerTab, availableIntersections, dangerChecking, availableIncidents, incidentChecking, t])
 
   // Step 4: Fly to active target + render pulse marker
   useEffect(() => {
@@ -293,6 +300,7 @@ export default function DashboardPage() {
     if (!activeTarget) return
 
     const { lat, lng } = activeTarget.item
+    // 路口名字保留中文（不翻譯）
     const label = activeTarget.kind === 'incident'
       ? activeTarget.item.location
       : activeTarget.item.name
@@ -313,16 +321,54 @@ export default function DashboardPage() {
     })
 
     const activeMarker = L.marker([lat, lng], { icon: pulseIcon, zIndexOffset: 1000 })
-      .bindTooltip(label, {
+      .addTo(mapRef.current)
+
+    // 動態號控 tab：路口名稱已在號誌資訊卡的「位置」欄位 + CCTV 浮層中顯示，
+    // 此處不再掛永久 tooltip，避免與號誌資訊卡互相重疊。
+    if (activeTab !== 'dynamicSignal') {
+      activeMarker.bindTooltip(label, {
         permanent: true,
         direction: 'top',
         offset: [0, -20],
         className: 'map-tooltip active-tooltip',
       })
-      .addTo(mapRef.current)
+    }
 
     activeMarkerRef.current = activeMarker
-  }, [activeTarget])
+  }, [activeTarget, activeTab])
+
+  // Step 5: 計算 SignalInfoCard 的像素位置，並隨地圖 pan/zoom 即時更新
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || activeTab !== 'dynamicSignal' || !activeTarget || activeTarget.kind !== 'incident') {
+      setSignalCardPos(null)
+      return
+    }
+
+    const { lat, lng } = activeTarget.item
+    const update = () => {
+      const point = map.latLngToContainerPoint([lat, lng])
+      setSignalCardPos({ x: point.x, y: point.y })
+    }
+    update()
+    map.on('move zoom moveend zoomend', update)
+    return () => {
+      map.off('move zoom moveend zoomend', update)
+    }
+  }, [activeTarget, activeTab])
+
+  // 取得當前選定事件的號誌資訊（只在動態號控 tab 顯示）
+  const signalInfo = useMemo(() => {
+    if (activeTab !== 'dynamicSignal' || !navigatedIncident) return null
+    return mockService.getSignalInfo(navigatedIncident.id)
+  }, [activeTab, navigatedIncident])
+
+  // 卡片靠近右邊界時自動翻到 marker 左側
+  const signalCardSide: 'left' | 'right' = useMemo(() => {
+    if (!signalCardPos || !mapContainerRef.current) return 'right'
+    const containerWidth = mapContainerRef.current.clientWidth
+    return signalCardPos.x + 260 > containerWidth ? 'left' : 'right'
+  }, [signalCardPos])
 
   const chartsIntersectionId = isDangerTab
     ? (selectedIntersection ?? availableIntersections[0])?.id ?? null
@@ -357,7 +403,7 @@ export default function DashboardPage() {
             className={activeTab === tab.key ? 'tab-btn active' : 'tab-btn'}
             onClick={() => setActiveTab(tab.key)}
           >
-            {tab.label}
+            {t(tab.label)}
           </button>
         ))}
       </div>
@@ -379,25 +425,21 @@ export default function DashboardPage() {
                     activeMarkerRef.current = null
                   }
                 }}
-                title="關閉"
+                title={t('關閉')}
               >
                 ✕
               </button>
             </div>
-            <img
+            <StreamingCctvImage
               src={cctvImageUrl}
-              alt={`${activeLabel} 即時影像`}
+              alt={`${activeLabel} ${t('即時影像')}`}
               className="cctv-overlay-image clickable"
               referrerPolicy="no-referrer"
-              title="點擊影像可放大檢視"
+              title={t('點擊影像可放大檢視')}
               onClick={() => setCctvExpanded(true)}
-              onError={(e) => {
-                const img = e.currentTarget
-                img.onerror = null
-                img.src = 'https://tw.live/assets/maintenance.jpg'
-              }}
+              paused={cctvExpanded}
             />
-            <span className="cctv-overlay-label">點擊影像可放大檢視</span>
+            <span className="cctv-overlay-label">{t('點擊影像可放大檢視')}</span>
           </div>
         )}
 
@@ -405,29 +447,34 @@ export default function DashboardPage() {
           <div className="cctv-modal-backdrop" onClick={() => setCctvExpanded(false)}>
             <div className="cctv-modal" onClick={(e) => e.stopPropagation()}>
               <div className="cctv-modal-header">
-                <span className="cctv-modal-title">{activeLabel} — CCTV 即時影像</span>
+                <span className="cctv-modal-title">{activeLabel} — {t('CCTV 即時影像')}</span>
                 <button
                   className="cctv-modal-close"
                   onClick={() => setCctvExpanded(false)}
-                  title="關閉"
+                  title={t('關閉')}
                 >
                   ✕
                 </button>
               </div>
-              <img
+              <StreamingCctvImage
                 src={cctvImageUrl}
-                alt={`${activeLabel} 即時影像（放大）`}
+                alt={`${activeLabel} ${t('即時影像（放大）')}`}
                 className="cctv-modal-image"
                 referrerPolicy="no-referrer"
                 onClick={() => setCctvExpanded(false)}
-                onError={(e) => {
-                  const img = e.currentTarget
-                  img.onerror = null
-                  img.src = 'https://tw.live/assets/maintenance.jpg'
-                }}
               />
             </div>
           </div>
+        )}
+
+        {/* 動態號控 tab：路口號誌資訊小視窗（隨地圖 pan/zoom 浮動） */}
+        {signalInfo && signalCardPos && (
+          <SignalInfoCard
+            signal={signalInfo}
+            pixelX={signalCardPos.x}
+            pixelY={signalCardPos.y}
+            side={signalCardSide}
+          />
         )}
       </div>
 
@@ -439,7 +486,7 @@ export default function DashboardPage() {
                 <div className="cctv-checking">
                   <div className="cctv-checking-spinner" />
                   <span>
-                    正在檢測危險路口 CCTV 連線... {dangerProgress.done}/{dangerProgress.total}
+                    {t('正在檢測危險路口 CCTV 連線...')} {dangerProgress.done}/{dangerProgress.total}
                   </span>
                   <div className="cctv-progress-bar">
                     <div
@@ -456,13 +503,13 @@ export default function DashboardPage() {
             ) : availableIntersections.length === 0 ? (
               <div className="card">
                 <div className="cctv-checking">
-                  <span>目前沒有可用的危險路口 CCTV 即時影像</span>
+                  <span>{t('目前沒有可用的危險路口 CCTV 即時影像')}</span>
                   <button
                     type="button"
                     className="btn"
                     onClick={handleRecheckIntersections}
                   >
-                    重新檢查
+                    {t('重新檢查')}
                   </button>
                 </div>
               </div>
@@ -471,7 +518,7 @@ export default function DashboardPage() {
             ) : null}
 
             <div className="card">
-              <h3>危險路口排名</h3>
+              <h3>{t('危險路口排名')}</h3>
               <ol className="rank-list">
                 {dangerRankList.map(d => (
                   <li key={d.id}>
@@ -480,7 +527,7 @@ export default function DashboardPage() {
                       className={'rank-link' + (!d.available ? ' disabled' : '')}
                       disabled={!d.available}
                       onClick={() => d.available && handleSelectIntersection(d)}
-                      title={d.available ? '點擊切換到此路口' : 'CCTV 目前無法連線'}
+                      title={d.available ? t('點擊切換到此路口') : t('CCTV 目前無法連線')}
                     >
                       {d.name}
                     </button>
@@ -492,13 +539,13 @@ export default function DashboardPage() {
         ) : (
           <>
             <div className="card incident-list-card">
-              <h3>即時事件通報列表</h3>
+              <h3>{t('即時事件通報列表')}</h3>
 
               {incidentChecking ? (
                 <div className="cctv-checking">
                   <div className="cctv-checking-spinner" />
                   <span>
-                    正在檢測 CCTV 連線狀態... {incidentProgress.done}/{incidentProgress.total}
+                    {t('正在檢測 CCTV 連線狀態...')} {incidentProgress.done}/{incidentProgress.total}
                   </span>
                   <div className="cctv-progress-bar">
                     <div
@@ -513,23 +560,23 @@ export default function DashboardPage() {
                 </div>
               ) : availableIncidents.length === 0 ? (
                 <div className="cctv-checking">
-                  <span>目前沒有可用的 CCTV 即時影像</span>
+                  <span>{t('目前沒有可用的 CCTV 即時影像')}</span>
                   <button
                     type="button"
                     className="btn"
                     onClick={handleRecheckIncidents}
                   >
-                    重新檢查
+                    {t('重新檢查')}
                   </button>
                 </div>
               ) : (
                 <div className="incident-list">
                   {incidentGroups.map((group) => {
-                    const meta = STATUS_LABEL[group.status]
+                    const className = STATUS_CLASSNAME[group.status]
                     return (
                       <div key={group.status}>
-                        <div className={`incident-group-title ${meta.className}`}>
-                          {meta.label}
+                        <div className={`incident-group-title ${className}`}>
+                          {t(group.status)}
                         </div>
                         {group.items.map((item) => (
                           <div
@@ -547,13 +594,13 @@ export default function DashboardPage() {
                               </svg>
                             </div>
                             <div className="incident-info">
-                              <span className="incident-type">{item.type}</span>
+                              <span className="incident-type">{t(item.type)}</span>
                               <span className="incident-location">{item.location}</span>
                             </div>
                             <span className="incident-time">{item.time.replace(' ', ' ')}</span>
                             <button
                               className="incident-nav-btn"
-                              title="導航至此路口"
+                              title={t('導航至此路口')}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleNavigate(item)
@@ -573,26 +620,33 @@ export default function DashboardPage() {
             </div>
 
             <div className="card ai-card">
-              <h3>AI 決策輔助</h3>
+              <h3>{t('AI 決策輔助')}</h3>
               {selectedIncident && (
                 <>
-                  <p>
-                    偵測到 <strong>{selectedIncident.location}</strong> 發生 <strong>{selectedIncident.type}</strong>，
-                    事件等級 <strong>{selectedIncident.severity}</strong>。
-                  </p>
-                  <p>建議操作：於附近 CMS 發布「前方路口發生事故，請減速通行」。</p>
+                  {lang === 'zh' ? (
+                    <p>
+                      偵測到 <strong>{selectedIncident.location}</strong> 發生 <strong>{selectedIncident.type}</strong>，
+                      事件等級 <strong>{selectedIncident.severity}</strong>。
+                    </p>
+                  ) : (
+                    <p>
+                      Detected <strong>{t(selectedIncident.type)}</strong> at <strong>{selectedIncident.location}</strong>,
+                      severity <strong>{t(selectedIncident.severity)}</strong>.
+                    </p>
+                  )}
+                  <p>{t('建議操作：於附近 CMS 發布「前方路口發生事故，請減速通行」。')}</p>
                 </>
               )}
               <div className="action-row">
-                <button className="btn primary">同意執行</button>
-                <button className="btn">前往事件反應管理</button>
-                <button className="btn ghost">忽略</button>
+                <button className="btn primary">{t('同意執行')}</button>
+                <button className="btn">{t('前往事件反應管理')}</button>
+                <button className="btn ghost">{t('忽略')}</button>
               </div>
             </div>
 
             {activeTab === 'unsignalizedIntersection' && (
               <div className="card">
-                <h3>無號誌路口排名</h3>
+                <h3>{t('無號誌路口排名')}</h3>
                 <ol className="rank-list">
                   {unsignalizedRankList.map(r => (
                     <li key={r.incidentId}>
@@ -601,7 +655,7 @@ export default function DashboardPage() {
                         className={'rank-link' + (!r.incident ? ' disabled' : '')}
                         disabled={!r.incident}
                         onClick={() => r.incident && handleNavigate(r.incident)}
-                        title={r.incident ? '點擊切換到此路口' : 'CCTV 目前無法連線'}
+                        title={r.incident ? t('點擊切換到此路口') : t('CCTV 目前無法連線')}
                       >
                         {r.name} - {r.score}
                       </button>
