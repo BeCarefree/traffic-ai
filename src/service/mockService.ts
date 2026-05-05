@@ -67,6 +67,17 @@ export type IntersectionChartData = {
 // 狀態分組排序順序
 const STATUS_ORDER: IncidentItem['status'][] = ['處理中', '已解除', '新事件']
 
+// 動態日期輔助 — 讓所有 mock 日期以當天為基準
+const _p2 = (n: number) => String(n).padStart(2, '0')
+const _todayDate = new Date()
+const _TODAY = `${_todayDate.getFullYear()}-${_p2(_todayDate.getMonth() + 1)}-${_p2(_todayDate.getDate())}`
+const _TODAYID = `${_todayDate.getFullYear()}${_p2(_todayDate.getMonth() + 1)}${_p2(_todayDate.getDate())}`
+const _daysAgo = (n: number): string => {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return `${d.getFullYear()}-${_p2(d.getMonth() + 1)}-${_p2(d.getDate())}`
+}
+
 // Mock data
 const mockData = {
   sidebarItems: [
@@ -89,26 +100,26 @@ const mockData = {
   // (b) 其餘為各路口 OSM Overpass API 共用節點（多為 traffic_signals）查詢結果。
   incidents: [
     // 處理中 (3)
-    { id: 'E-20260309-001', time: '2026-03-09 09:11', type: '人車事故', status: '處理中', location: '忠一路 / 孝二路', severity: '高', cctvHexId: '1c8ebc07', lat: 25.1309619, lng: 121.7409682 },
-    { id: 'E-20260309-002', time: '2026-03-09 09:25', type: '緊急車輛通行', status: '處理中', location: '愛三路 / 仁五路', severity: '中', cctvHexId: '24b2e625', lat: 25.1269448, lng: 121.7417032 },
-    { id: 'E-20260309-003', time: '2026-03-09 09:33', type: '號誌異常', status: '處理中', location: '正信路 / 信一路', severity: '高', cctvHexId: '6972615b', lat: 25.1313149, lng: 121.7615148 },
+    { id: `E-${_TODAYID}-001`, time: `${_TODAY} 09:11`, type: '人車事故', status: '處理中', location: '忠一路 / 孝二路', severity: '高', cctvHexId: '1c8ebc07', lat: 25.1309619, lng: 121.7409682 },
+    { id: `E-${_TODAYID}-002`, time: `${_TODAY} 09:25`, type: '緊急車輛通行', status: '處理中', location: '愛三路 / 仁五路', severity: '中', cctvHexId: '24b2e625', lat: 25.1269448, lng: 121.7417032 },
+    { id: `E-${_TODAYID}-003`, time: `${_TODAY} 09:33`, type: '號誌異常', status: '處理中', location: '正信路 / 信一路', severity: '高', cctvHexId: '6972615b', lat: 25.1313149, lng: 121.7615148 },
     // 已解除 (7)
-    { id: 'E-20260309-004', time: '2026-03-09 09:40', type: '人車事故', status: '已解除', location: '孝二路 / 忠四路', severity: '高', cctvHexId: '70cf7bac', lat: 25.1283421, lng: 121.7392339 },
-    { id: 'E-20260309-005', time: '2026-03-09 09:55', type: '緊急車輛通行', status: '已解除', location: '信二路 / 義四路', severity: '中', cctvHexId: '5dc09fe8', lat: 25.1300303, lng: 121.7483585 },
-    { id: 'E-20260309-006', time: '2026-03-09 10:02', type: '人車事故', status: '已解除', location: '仁二路 / 愛六路', severity: '低', cctvHexId: '05c7e2d9', lat: 25.1274410, lng: 121.7472161 },
-    { id: 'E-20260309-007', time: '2026-03-09 10:15', type: '未依規定讓車', status: '已解除', location: '安一路 / 西定路', severity: '低', cctvHexId: '108ffee4', lat: 25.1316335, lng: 121.7354372 },
-    { id: 'E-20260309-008', time: '2026-03-09 10:28', type: '違反號誌/標誌管制', status: '已解除', location: '忠一路 / 孝四路', severity: '中', cctvHexId: '10afbef6', lat: 25.1315328, lng: 121.7396819 },
-    { id: 'E-20260309-009', time: '2026-03-09 10:35', type: '人車事故', status: '已解除', location: '中正路/正濱路', severity: '中', cctvHexId: '8edd00b1', lat: 25.1518792, lng: 121.7702085 },
+    { id: `E-${_TODAYID}-004`, time: `${_TODAY} 09:40`, type: '人車事故', status: '已解除', location: '孝二路 / 忠四路', severity: '高', cctvHexId: '70cf7bac', lat: 25.1283421, lng: 121.7392339 },
+    { id: `E-${_TODAYID}-005`, time: `${_TODAY} 09:55`, type: '緊急車輛通行', status: '已解除', location: '信二路 / 義四路', severity: '中', cctvHexId: '5dc09fe8', lat: 25.1300303, lng: 121.7483585 },
+    { id: `E-${_TODAYID}-006`, time: `${_TODAY} 10:02`, type: '人車事故', status: '已解除', location: '仁二路 / 愛六路', severity: '低', cctvHexId: '05c7e2d9', lat: 25.1274410, lng: 121.7472161 },
+    { id: `E-${_TODAYID}-007`, time: `${_TODAY} 10:15`, type: '未依規定讓車', status: '已解除', location: '安一路 / 西定路', severity: '低', cctvHexId: '108ffee4', lat: 25.1316335, lng: 121.7354372 },
+    { id: `E-${_TODAYID}-008`, time: `${_TODAY} 10:28`, type: '違反號誌/標誌管制', status: '已解除', location: '忠一路 / 孝四路', severity: '中', cctvHexId: '10afbef6', lat: 25.1315328, lng: 121.7396819 },
+    { id: `E-${_TODAYID}-009`, time: `${_TODAY} 10:35`, type: '人車事故', status: '已解除', location: '中正路/正濱路', severity: '中', cctvHexId: '8edd00b1', lat: 25.1518792, lng: 121.7702085 },
     // 中山二路36巷在 OSM 沒有獨立節點，取主路 中山二路 中段為代表座標。
-    { id: 'E-20260309-010', time: '2026-03-09 10:42', type: '施工影響', status: '已解除', location: '中山二路36巷', severity: '低', cctvHexId: 'a22c3d9d', lat: 25.1380386, lng: 121.7407311 },
+    { id: `E-${_TODAYID}-010`, time: `${_TODAY} 10:42`, type: '施工影響', status: '已解除', location: '中山二路36巷', severity: '低', cctvHexId: 'a22c3d9d', lat: 25.1380386, lng: 121.7407311 },
     // 新事件 (5)
-    { id: 'E-20260309-011', time: '2026-03-09 10:50', type: '號誌異常', status: '新事件', location: '中山一路 / 忠一路', severity: '高', cctvHexId: '4e6b2984', lat: 25.1323044, lng: 121.7384897 },
-    { id: 'E-20260309-012', time: '2026-03-09 10:58', type: '施工影響', status: '新事件', location: '中山一路 / 成功二路', severity: '中', cctvHexId: 'bf0ed2e8', lat: 25.1297205, lng: 121.7365855 },
-    { id: 'E-20260309-013', time: '2026-03-09 11:05', type: '人車事故', status: '新事件', location: '仁一路 / 愛三路', severity: '高', cctvHexId: 'ae1a88db', lat: 25.1304603, lng: 121.7439841 },
+    { id: `E-${_TODAYID}-011`, time: `${_TODAY} 10:50`, type: '號誌異常', status: '新事件', location: '中山一路 / 忠一路', severity: '高', cctvHexId: '4e6b2984', lat: 25.1323044, lng: 121.7384897 },
+    { id: `E-${_TODAYID}-012`, time: `${_TODAY} 10:58`, type: '施工影響', status: '新事件', location: '中山一路 / 成功二路', severity: '中', cctvHexId: 'bf0ed2e8', lat: 25.1297205, lng: 121.7365855 },
+    { id: `E-${_TODAYID}-013`, time: `${_TODAY} 11:05`, type: '人車事故', status: '新事件', location: '仁一路 / 愛三路', severity: '高', cctvHexId: 'ae1a88db', lat: 25.1304603, lng: 121.7439841 },
     // 原 hexId 65d97b22 在 klcg.gov.tw 已 404；借用 DI-03 的 6972615b（CCTV 自標「正信路 / 信一路」，含信一路）以維持排名連動。
-    { id: 'E-20260309-014', time: '2026-03-09 11:12', type: '緊急車輛通行', status: '新事件', location: '中正路 / 信一路', severity: '中', cctvHexId: '6972615b', lat: 25.1312877, lng: 121.7434160 },
+    { id: `E-${_TODAYID}-014`, time: `${_TODAY} 11:12`, type: '緊急車輛通行', status: '新事件', location: '中正路 / 信一路', severity: '中', cctvHexId: '6972615b', lat: 25.1312877, lng: 121.7434160 },
     // 「祥豐路」在 OSM 中登錄為「祥豐街」，共用節點為 traffic_signals。
-    { id: 'E-20260309-015', time: '2026-03-09 11:20', type: '未依規定讓車', status: '新事件', location: '北寧路 / 祥豐路', severity: '低', cctvHexId: '582d9c95', lat: 25.1506602, lng: 121.7722491 },
+    { id: `E-${_TODAYID}-015`, time: `${_TODAY} 11:20`, type: '未依規定讓車', status: '新事件', location: '北寧路 / 祥豐路', severity: '低', cctvHexId: '582d9c95', lat: 25.1506602, lng: 121.7722491 },
   ] as IncidentItem[],
 
   // 座標經 OpenStreetMap Overpass API 驗證，為實際兩條路的交叉節點。
@@ -131,10 +142,10 @@ const mockData = {
 
   // 無號誌路口排名：以 incidentId 串到既有事件，點擊時直接 navigate 到該事件。
   unsignalizedRanks: [
-    { incidentId: 'E-20260309-007', name: '安一路 / 西定路', score: 3 },
-    { incidentId: 'E-20260309-014', name: '中正路 / 信一路', score: 2 },
-    { incidentId: 'E-20260309-001', name: '忠一路 / 孝二路', score: 2 },
-    { incidentId: 'E-20260309-005', name: '信二路 / 義四路', score: 1 },
+    { incidentId: `E-${_TODAYID}-007`, name: '安一路 / 西定路', score: 3 },
+    { incidentId: `E-${_TODAYID}-014`, name: '中正路 / 信一路', score: 2 },
+    { incidentId: `E-${_TODAYID}-001`, name: '忠一路 / 孝二路', score: 2 },
+    { incidentId: `E-${_TODAYID}-005`, name: '信二路 / 義四路', score: 1 },
   ] as UnsignalizedRank[],
 
   deviceRates: [
@@ -151,26 +162,26 @@ const mockData = {
   ] as RouteKpi[],
 
   deviceRows: [
-    { id: 'D-001', name: 'CCTV-1', location: '安一路', status: '正常', heartbeat: '2026-03-09 10:10' },
-    { id: 'D-002', name: 'CMS-2', location: '孝三路', status: '異常', heartbeat: '2026-03-09 10:11' },
-    { id: 'D-003', name: 'CCTV-3', location: '信一路', status: '正常', heartbeat: '2026-03-09 10:12' },
-    { id: 'D-004', name: 'CMS-4', location: '中華路', status: '離線', heartbeat: '2026-03-09 10:13' },
-    { id: 'D-005', name: 'CCTV-5', location: '安一路', status: '正常', heartbeat: '2026-03-09 10:14' },
-    { id: 'D-006', name: 'CMS-6', location: '孝三路', status: '異常', heartbeat: '2026-03-09 10:15' },
-    { id: 'D-007', name: 'CCTV-7', location: '信一路', status: '正常', heartbeat: '2026-03-09 10:16' },
-    { id: 'D-008', name: 'CMS-8', location: '中華路', status: '正常', heartbeat: '2026-03-09 10:17' },
-    { id: 'D-009', name: 'CCTV-9', location: '安一路', status: '正常', heartbeat: '2026-03-09 10:18' },
-    { id: 'D-010', name: 'CMS-10', location: '孝三路', status: '正常', heartbeat: '2026-03-09 10:19' },
-    { id: 'D-011', name: 'CCTV-11', location: '信一路', status: '異常', heartbeat: '2026-03-09 10:20' },
-    { id: 'D-012', name: 'CMS-12', location: '中華路', status: '異常', heartbeat: '2026-03-09 10:21' },
-    { id: 'D-013', name: 'CCTV-13', location: '安一路', status: '正常', heartbeat: '2026-03-09 10:22' },
-    { id: 'D-014', name: 'CMS-14', location: '孝三路', status: '正常', heartbeat: '2026-03-09 10:23' },
-    { id: 'D-015', name: 'CCTV-15', location: '信一路', status: '正常', heartbeat: '2026-03-09 10:24' },
-    { id: 'D-016', name: 'CMS-16', location: '中華路', status: '離線', heartbeat: '2026-03-09 10:25' },
-    { id: 'D-017', name: 'CCTV-17', location: '安一路', status: '正常', heartbeat: '2026-03-09 10:26' },
-    { id: 'D-018', name: 'CMS-18', location: '孝三路', status: '異常', heartbeat: '2026-03-09 10:27' },
-    { id: 'D-019', name: 'CCTV-19', location: '信一路', status: '正常', heartbeat: '2026-03-09 10:28' },
-    { id: 'D-020', name: 'CMS-20', location: '中華路', status: '正常', heartbeat: '2026-03-09 10:29' },
+    { id: 'D-001', name: 'CCTV-1', location: '安一路', status: '正常', heartbeat: `${_TODAY} 10:10` },
+    { id: 'D-002', name: 'CMS-2', location: '孝三路', status: '異常', heartbeat: `${_TODAY} 10:11` },
+    { id: 'D-003', name: 'CCTV-3', location: '信一路', status: '正常', heartbeat: `${_TODAY} 10:12` },
+    { id: 'D-004', name: 'CMS-4', location: '中華路', status: '離線', heartbeat: `${_TODAY} 10:13` },
+    { id: 'D-005', name: 'CCTV-5', location: '安一路', status: '正常', heartbeat: `${_TODAY} 10:14` },
+    { id: 'D-006', name: 'CMS-6', location: '孝三路', status: '異常', heartbeat: `${_TODAY} 10:15` },
+    { id: 'D-007', name: 'CCTV-7', location: '信一路', status: '正常', heartbeat: `${_TODAY} 10:16` },
+    { id: 'D-008', name: 'CMS-8', location: '中華路', status: '正常', heartbeat: `${_TODAY} 10:17` },
+    { id: 'D-009', name: 'CCTV-9', location: '安一路', status: '正常', heartbeat: `${_TODAY} 10:18` },
+    { id: 'D-010', name: 'CMS-10', location: '孝三路', status: '正常', heartbeat: `${_TODAY} 10:19` },
+    { id: 'D-011', name: 'CCTV-11', location: '信一路', status: '異常', heartbeat: `${_TODAY} 10:20` },
+    { id: 'D-012', name: 'CMS-12', location: '中華路', status: '異常', heartbeat: `${_TODAY} 10:21` },
+    { id: 'D-013', name: 'CCTV-13', location: '安一路', status: '正常', heartbeat: `${_TODAY} 10:22` },
+    { id: 'D-014', name: 'CMS-14', location: '孝三路', status: '正常', heartbeat: `${_TODAY} 10:23` },
+    { id: 'D-015', name: 'CCTV-15', location: '信一路', status: '正常', heartbeat: `${_TODAY} 10:24` },
+    { id: 'D-016', name: 'CMS-16', location: '中華路', status: '離線', heartbeat: `${_TODAY} 10:25` },
+    { id: 'D-017', name: 'CCTV-17', location: '安一路', status: '正常', heartbeat: `${_TODAY} 10:26` },
+    { id: 'D-018', name: 'CMS-18', location: '孝三路', status: '異常', heartbeat: `${_TODAY} 10:27` },
+    { id: 'D-019', name: 'CCTV-19', location: '信一路', status: '正常', heartbeat: `${_TODAY} 10:28` },
+    { id: 'D-020', name: 'CMS-20', location: '中華路', status: '正常', heartbeat: `${_TODAY} 10:29` },
   ] as DeviceRow[],
 
   responseTimeline: [
@@ -181,9 +192,9 @@ const mockData = {
   ] as TimelineItem[],
 
   cmsTemplates: [
-    { id: 'T-001', title: '前方路口事故，請減速慢行', channel: 'CMS', lastUsed: '2026-03-09' },
-    { id: 'T-002', title: '前方壅塞，建議改道', channel: 'CMS', lastUsed: '2026-03-08' },
-    { id: 'T-003', title: '施工路段，注意安全', channel: 'CMS', lastUsed: '2026-03-05' },
+    { id: 'T-001', title: '前方路口事故，請減速慢行', channel: 'CMS', lastUsed: _TODAY },
+    { id: 'T-002', title: '前方壅塞，建議改道', channel: 'CMS', lastUsed: _daysAgo(1) },
+    { id: 'T-003', title: '施工路段，注意安全', channel: 'CMS', lastUsed: _daysAgo(4) },
   ] as CmsTemplate[],
 
   dataSources: [
@@ -248,15 +259,20 @@ function getRangeConfig(range: ChartRange): RangeConfig {
       },
     }
   }
-  // 7d — past 7 days ending today (2026-04-24)
-  const days = ['04/18', '04/19', '04/20', '04/21', '04/22', '04/23', '04/24']
+  // 7d — past 7 days ending today (dynamic)
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (6 - i))
+    return `${_p2(d.getMonth() + 1)}/${_p2(d.getDate())}`
+  })
   return {
     bucketCount: 7,
     labelAt: (i) => days[i],
     highlightAt: (i) => i === 6,
     weightAt: (i) => {
-      // weekdays higher than weekends. 04/18 = Sat, 04/19 = Sun, 04/20-04/24 = Mon-Fri
-      const isWeekend = i === 0 || i === 1
+      const d = new Date()
+      d.setDate(d.getDate() - (6 - i))
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6
       return isWeekend ? 0.55 : 0.9
     },
   }

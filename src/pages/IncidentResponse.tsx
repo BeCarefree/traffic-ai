@@ -1,6 +1,10 @@
 import { mockService } from '../service/mockService'
 import { useLanguage } from '../i18n/languageContext'
 
+const _p2 = (n: number) => String(n).padStart(2, '0')
+const _now = new Date()
+const _TODAYID = `${_now.getFullYear()}${_p2(_now.getMonth() + 1)}${_p2(_now.getDate())}`
+
 export default function IncidentResponsePage() {
   const { t } = useLanguage()
   const responseTimeline = mockService.getResponseTimeline()
@@ -25,7 +29,7 @@ export default function IncidentResponsePage() {
           const assignee = idx % 2 ? '值勤A' : '值勤B'
           return (
             <div key={`ir-${idx}`} className="table-row large static-row">
-              <span>E-20260309-0{idx + 1}</span>
+              <span>E-{_TODAYID}-0{idx + 1}</span>
               <span>{t(type)}</span>
               <span>{intersection}</span>
               <span>{t(status)}</span>
