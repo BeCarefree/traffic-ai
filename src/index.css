@@ -998,6 +998,35 @@ input {
   margin-top: 6px;
 }
 
+/* 無號誌路口 tab：事故/現場圖片浮層（跟隨路口圓點右下方） */
+.scene-overlay {
+  position: absolute;
+  /* top / left 由 React inline style 設定 */
+  width: 440px;
+  background: rgba(10, 23, 48, 0.95);
+  border: 1px solid #38bdf8;
+  border-radius: 12px;
+  padding: 8px;
+  z-index: 1000;
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  animation: sceneFadeIn 0.3s ease-out;
+  pointer-events: none;
+}
+
+@keyframes sceneFadeIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.scene-overlay-image {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+  object-fit: cover;
+  max-height: 320px;
+}
+
 /* ========================================
    動態號控 — 路口號誌資訊卡 (Glassmorphism)
    ======================================== */

@@ -56,6 +56,8 @@ export default function DashboardPage() {
   const [cctvExpanded, setCctvExpanded] = useState(false)
   // 動態號控 tab 中，路口號誌資訊卡的螢幕像素座標（隨地圖 pan/zoom 即時更新）
   const [signalCardPos, setSignalCardPos] = useState<{ x: number; y: number } | null>(null)
+  // 無號誌路口 tab 中，事故現場圖片的螢幕像素座標
+  const [sceneImagePos, setSceneImagePos] = useState<{ x: number; y: number } | null>(null)
 
   // 動態號控 tab — 道路績效更新時間（按重新整理時切到「現在」）
   const [routeKpiUpdateTime, setRouteKpiUpdateTime] = useState<string>(
@@ -135,6 +137,19 @@ export default function DashboardPage() {
   const cctvImageUrl = activeTarget
     ? `https://cctv.klcg.gov.tw/${activeTarget.item.cctvHexId}/snapshot`
     : null
+
+  // 無號誌路口 tab：特定路口對應的事故/現場圖片（僅 3 個路口有圖）
+  const UNSIG_SCENE_IMAGES: Record<string, string> = {
+    '愛三路 / 仁五路': 'unsig_ai3_rw5.jpg',
+    '正信路 / 信一路': 'unsig_zx_xy1.png',
+    '忠一路 / 孝二路': 'unsig_zy1_xe2.jpg',
+  }
+  const unsigSceneImageUrl = useMemo(() => {
+    if (activeTab !== 'unsignalizedIntersection' || !activeTarget || activeTarget.kind !== 'incident') return null
+    const location = activeTarget.item.location
+    const filename = UNSIG_SCENE_IMAGES[location]
+    return filename ? `${import.meta.env.BASE_URL}media/${filename}` : null
+  }, [activeTab, activeTarget])
 
   // Step 1a: Probe incident CCTVs (callable for retry)
   const probeIncidents = useCallback(() => {
@@ -422,6 +437,26 @@ export default function DashboardPage() {
     }
   }, [activeTarget, activeTab])
 
+  // Step 5b: 計算無號誌路口事故現場圖片的像素位置，並隨地圖 pan/zoom 即時更新
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !unsigSceneImageUrl || !activeTarget) {
+      setSceneImagePos(null)
+      return
+    }
+
+    const { lat, lng } = activeTarget.item
+    const update = () => {
+      const point = map.latLngToContainerPoint([lat, lng])
+      setSceneImagePos({ x: point.x, y: point.y })
+    }
+    update()
+    map.on('move zoom moveend zoomend', update)
+    return () => {
+      map.off('move zoom moveend zoomend', update)
+    }
+  }, [activeTarget, unsigSceneImageUrl])
+
   // 取得當前選定事件的號誌資訊（只在動態號控 tab 顯示）
   const signalInfo = useMemo(() => {
     if (activeTab !== 'dynamicSignal' || !navigatedIncident) return null
@@ -541,6 +576,23 @@ export default function DashboardPage() {
                 onClick={() => setCctvExpanded(false)}
               />
             </div>
+          </div>
+        )}
+
+        {/* 無號誌路口 tab：特定路口的事故/現場圖片（跟隨路口圓點右下方） */}
+        {unsigSceneImageUrl && activeLabel && sceneImagePos && (
+          <div
+            className="scene-overlay"
+            style={{
+              left: sceneImagePos.x + 40,
+              top: sceneImagePos.y + 40,
+            }}
+          >
+            <img
+              src={unsigSceneImageUrl}
+              alt={`${activeLabel} 現場圖片`}
+              className="scene-overlay-image"
+            />
           </div>
         )}
 
