@@ -44,7 +44,6 @@ export default function CmsPage() {
             </li>
           ))}
         </ul>
-        <img src={`${import.meta.env.BASE_URL}media/image15.jpeg`} alt={t('CMS 設備示意')} className="preview" />
       </article>
     </section>
   )

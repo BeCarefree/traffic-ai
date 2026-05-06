@@ -54,6 +54,14 @@ export type SignalInfo = {
   lastOnline: string
 }
 
+// 上次策略成效量化評估的單筆指標
+export type StrategyEffect = {
+  road: string        // 路名（保留中文）
+  metric: string      // 指標名稱（會被 i18n 翻譯）
+  value: number       // 變化量百分比
+  improved: boolean   // true = 改善（綠色 ↓）；false = 惡化（紅色 ↑）
+}
+
 export type RightTurnCountPoint = { label: string; value: number; highlight: boolean }
 export type RightTurnSpeedPoint = { label: string; speed: number; ratio: number; highlight: boolean }
 export type PedestrianViolationPoint = { label: string; value: number; highlight: boolean }
@@ -359,6 +367,27 @@ function buildSignalInfo(incident: IncidentItem): SignalInfo {
   }
 }
 
+// 從路口 location（例：「忠一路 / 孝二路」）取出第一條路名作為策略影響的代表路段。
+// 若沒有 " / " 分隔，整個字串視為單一路名（例：「中山二路36巷」）。
+function pickPrimaryRoad(location: string): string {
+  const parts = location.split('/').map(s => s.trim()).filter(Boolean)
+  return parts[0] || location
+}
+
+// 依事件 id 推導出固定的策略成效 — 同一路口每次都一樣，不同路口會變化。
+function buildStrategyEffects(incident: IncidentItem): StrategyEffect[] {
+  const rng = makeRng(`strategy|${incident.id}`)
+  const road = pickPrimaryRoad(incident.location)
+  // 兩個指標都套同一個範圍 8..35%，並做 1 位小數
+  const mk = (metric: string): StrategyEffect => ({
+    road,
+    metric,
+    value: +(rng() * 27 + 8).toFixed(1),
+    improved: true,
+  })
+  return [mk('通行時間'), mk('繞行車流')]
+}
+
 // Mock service functions
 export const mockService = {
   getSidebarItems(): SidebarItem[] {
@@ -371,6 +400,15 @@ export const mockService = {
 
   getIncidents(): IncidentItem[] {
     return mockData.incidents
+  },
+
+  // 優先通行 tab 固定顯示的 3 個路口事件 ID（cctvHexId 與 DI-01/02/03 共用，已驗證可連線）
+  getPriorityPassIds(): string[] {
+    return [
+      `E-${_TODAYID}-001`,  // 忠一路 / 孝二路  (1c8ebc07)
+      `E-${_TODAYID}-002`,  // 愛三路 / 仁五路  (24b2e625)
+      `E-${_TODAYID}-003`,  // 正信路 / 信一路  (6972615b)
+    ]
   },
 
   getSignalInfo(incidentId: string): SignalInfo | null {
@@ -406,6 +444,17 @@ export const mockService = {
 
   getRouteKpi(): RouteKpi[] {
     return mockData.routeKpi
+  },
+
+  getStrategyEffects(incidentId: string): StrategyEffect[] {
+    const incident = mockData.incidents.find(i => i.id === incidentId)
+    if (!incident) return []
+    return buildStrategyEffects(incident)
+  },
+
+  // 道路績效預設更新時間：今天 19:11（與其他 mock 資料的 dynamic-today 一致）
+  getRouteKpiUpdateTime(): string {
+    return `${_TODAY} 19:11`
   },
 
   getDevices(): DeviceRow[] {

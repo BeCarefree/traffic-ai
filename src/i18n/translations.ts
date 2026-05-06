@@ -13,7 +13,9 @@ export const translations: Record<string, string> = {
 
   // Dashboard tabs
   '動態號控': 'Dynamic Signal Control',
+  '動態號控列表': 'Dynamic Signal Control List',
   '優先通行': 'Priority Pass',
+  '優先通行列表': 'Priority Pass List',
   '危險路口': 'Dangerous Intersections',
   '無號誌路口': 'Unsignalized Intersections',
 
@@ -159,6 +161,14 @@ export const translations: Record<string, string> = {
   '減速比例': 'Deceleration Ratio',
   '速度': 'Speed',
   '減速': 'Decel',
+
+  // Road performance & strategy effectiveness (dynamicSignal tab)
+  '道路績效': 'Road Performance',
+  '上次策略成效量化評估': 'Last Strategy Effectiveness',
+  '更新時間': 'Updated',
+  '通行時間': 'Travel Time',
+  '繞行車流': 'Bypass Traffic',
+  '重新整理': 'Refresh',
 
   // Signal info card
   '號誌資訊': 'Signal Info',

@@ -267,6 +267,12 @@ nav {
   animation: markerPulse 1.5s ease-out infinite;
 }
 
+.ambulance-marker {
+  background: none !important;
+  border: none !important;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
+}
+
 @keyframes markerPulse {
   0% {
     transform: translate(-50%, -50%) scale(0.5);
@@ -739,6 +745,168 @@ input {
 }
 
 /* ========================================
+   動態號控 — 路口扁平清單（取代事件分組樣式）
+   ======================================== */
+
+.signal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.signal-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.signal-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.signal-list::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+.signal-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  min-height: 56px;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.signal-row:hover {
+  border-color: rgba(103, 232, 249, 0.45);
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.signal-row:focus-visible {
+  outline: none;
+  border-color: rgba(103, 232, 249, 0.7);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.18);
+}
+
+.signal-row.active {
+  border-color: #67e8f9;
+  background: rgba(34, 211, 238, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(103, 232, 249, 0.35),
+    0 8px 22px rgba(34, 211, 238, 0.12);
+}
+
+.signal-row.navigated {
+  border-color: #22d3ee;
+}
+
+/* 左側 4px 狀態色條 — 顏色對應事件狀態 */
+.signal-row-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+.signal-row-accent.processing { background: var(--warn); }
+.signal-row-accent.resolved   { background: var(--ok); }
+.signal-row-accent.new        { background: var(--danger); }
+/* 動態號控列表 — 依號誌模式著色（與號誌資訊卡同步） */
+.signal-row-accent.auto       { background: var(--ok); }
+.signal-row-accent.manual     { background: var(--warn); }
+.signal-row-accent.offline    { background: var(--danger); }
+
+.signal-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.6);
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: color 180ms ease, background 180ms ease;
+}
+
+.signal-row:hover .signal-row-icon,
+.signal-row.active .signal-row-icon {
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.signal-row-location {
+  font-family: 'Fira Sans', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.signal-row-time {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.signal-row-nav {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ok);
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.signal-row-nav:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+.signal-row-nav:active {
+  transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-row,
+  .signal-row-icon,
+  .signal-row-nav {
+    transition: none;
+  }
+  .signal-row-nav:hover,
+  .signal-row-nav:active {
+    transform: none;
+  }
+}
+
+/* ========================================
    CCTV 浮層
    ======================================== */
 
@@ -997,6 +1165,197 @@ input {
   font-family: 'Fira Code', monospace;
   font-size: 0.7rem;
   color: #cbd5e1;
+}
+
+/* ========================================
+   動態號控 — 道路績效 / 策略成效卡片
+   ======================================== */
+
+.kpi-card,
+.strategy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kpi-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.kpi-section-header h3 {
+  margin: 0;
+}
+
+.kpi-update-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.kpi-update-time {
+  font-family: 'Fira Code', monospace;
+  font-size: 0.74rem;
+}
+
+.kpi-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.6);
+  color: #67e8f9;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.kpi-refresh-btn:hover {
+  color: var(--text);
+  border-color: #22d3ee;
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.kpi-refresh-btn:active svg {
+  transform: rotate(-180deg);
+  transition: transform 300ms ease;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.kpi-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.kpi-tile:hover {
+  border-color: #22d3ee;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.kpi-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kpi-tile-label {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.kpi-tile-menu {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.kpi-tile-menu:hover {
+  color: var(--text);
+}
+
+.kpi-tile-sub {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.kpi-tile-value {
+  margin-top: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #f59e0b;
+  letter-spacing: 0.02em;
+}
+
+.kpi-tile:nth-child(3n + 1) .kpi-tile-value {
+  color: #67e8f9;
+}
+.kpi-tile:nth-child(3n + 2) .kpi-tile-value {
+  color: #f59e0b;
+}
+.kpi-tile:nth-child(3n + 3) .kpi-tile-value {
+  color: #fb7185;
+}
+
+.strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.strategy-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.strategy-tile:hover {
+  border-color: #22d3ee;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+.strategy-tile-label {
+  font-size: 0.82rem;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.strategy-tile-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Fira Code', monospace;
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.strategy-tile-value.improved {
+  color: #67e8f9;
+}
+
+.strategy-tile-value.worsened {
+  color: var(--danger);
+}
+
+.strategy-tile-arrow {
+  margin-left: 2px;
+  color: var(--ok);
+}
+
+.strategy-tile-value.worsened .strategy-tile-arrow {
+  color: var(--danger);
 }
 
 /* ========================================

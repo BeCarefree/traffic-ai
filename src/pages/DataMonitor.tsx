@@ -51,7 +51,6 @@ export default function DataMonitorPage() {
             )
           })}
         </ul>
-        <img src={`${import.meta.env.BASE_URL}media/image11.png`} alt={t('AI 事故分析示意')} className="preview" />
       </article>
     </section>
   )

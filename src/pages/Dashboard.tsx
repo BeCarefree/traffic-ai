@@ -57,17 +57,31 @@ export default function DashboardPage() {
   // 動態號控 tab 中，路口號誌資訊卡的螢幕像素座標（隨地圖 pan/zoom 即時更新）
   const [signalCardPos, setSignalCardPos] = useState<{ x: number; y: number } | null>(null)
 
+  // 動態號控 tab — 道路績效更新時間（按重新整理時切到「現在」）
+  const [routeKpiUpdateTime, setRouteKpiUpdateTime] = useState<string>(
+    () => mockService.getRouteKpiUpdateTime(),
+  )
+  const handleRefreshRouteKpi = useCallback(() => {
+    const d = new Date()
+    const p = (n: number) => String(n).padStart(2, '0')
+    setRouteKpiUpdateTime(
+      `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`,
+    )
+  }, [])
+
   const dashboardTabs = mockService.getDashboardTabs()
+  const routeKpi = mockService.getRouteKpi()
 
   // Leaflet map refs
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const markersRef = useRef<L.LayerGroup | null>(null)
+  const priorityLayerRef = useRef<L.LayerGroup | null>(null)
   const activeMarkerRef = useRef<L.Marker | null>(null)
   const handleNavigateRef = useRef<(incident: IncidentItem) => void>(() => {})
   const handleSelectIntersectionRef = useRef<(i: DangerIntersection) => void>(() => {})
 
-  // 即時事件依狀態分組（非危險路口 tab 使用）
+  // 即時事件依狀態分組（優先通行 / 無號誌路口 tab 使用）
   const incidentGroups = useMemo(() => {
     return STATUS_ORDER
       .map(status => ({
@@ -76,6 +90,19 @@ export default function DashboardPage() {
       }))
       .filter(group => group.items.length > 0)
   }, [availableIncidents])
+
+  // 動態號控 tab 的扁平清單 — 不分組、按時間倒序（新事件在前）
+  const flatIncidents = useMemo(() => {
+    return [...availableIncidents].sort((a, b) => b.time.localeCompare(a.time))
+  }, [availableIncidents])
+
+  // 優先通行 tab — 固定顯示 3 個有 CCTV 的路口（從 availableIncidents 中篩選）
+  const PRIORITY_IDS = useMemo(() => mockService.getPriorityPassIds(), [])
+  const priorityIncidents = useMemo(() => {
+    return PRIORITY_IDS
+      .map(id => availableIncidents.find(i => i.id === id))
+      .filter((i): i is IncidentItem => i != null)
+  }, [availableIncidents, PRIORITY_IDS])
 
   const handleNavigate = useCallback((incident: IncidentItem) => {
     setNavigatedIncident(incident)
@@ -197,6 +224,7 @@ export default function DashboardPage() {
     }).addTo(map)
 
     markersRef.current = L.layerGroup().addTo(map)
+    priorityLayerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
 
     setTimeout(() => map.invalidateSize(), 100)
@@ -253,7 +281,10 @@ export default function DashboardPage() {
     } else {
       if (incidentChecking) return
 
-      availableIncidents.forEach((incident) => {
+      // 優先通行 tab 只顯示 3 個指定路口；其他 tab 顯示全部
+      const incidentsToShow = activeTab === 'priorityPass' ? priorityIncidents : availableIncidents
+
+      incidentsToShow.forEach((incident) => {
         const isProcessing = incident.status === '處理中'
         const isNew = incident.status === '新事件'
         const color = isProcessing ? '#f59e0b' : isNew ? '#ef4444' : '#22c55e'
@@ -279,14 +310,48 @@ export default function DashboardPage() {
         })
       })
 
-      if (availableIncidents.length > 0 && !navigatedIncident) {
+      if (incidentsToShow.length > 0 && !navigatedIncident) {
         setTimeout(() => {
-          handleNavigateRef.current(availableIncidents[0])
+          handleNavigateRef.current(incidentsToShow[0])
         }, 300)
       }
     }
+
+    // 優先通行 tab：在每個路口畫綠色圓環 + 救護車圖示
+    if (priorityLayerRef.current) priorityLayerRef.current.clearLayers()
+    if (activeTab === 'priorityPass' && priorityLayerRef.current) {
+      const AMBULANCE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 36" width="48" height="36"><rect x="1" y="6" width="46" height="22" rx="4" fill="#fff" stroke="#ef4444" stroke-width="2"/><rect x="3" y="8" width="18" height="18" rx="2" fill="#ef4444"/><rect x="9" y="12" width="6" height="10" rx="1" fill="#fff"/><rect x="10.5" y="14" width="3" height="6" rx=".5" fill="#ef4444"/><path d="M21 14h14c4 0 7 3 7 7v5H21z" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/><circle cx="12" cy="30" r="4" fill="#334155" stroke="#fff" stroke-width="1.5"/><circle cx="36" cy="30" r="4" fill="#334155" stroke="#fff" stroke-width="1.5"/><rect x="38" y="18" width="4" height="2" rx="1" fill="#f59e0b"/><text x="30" y="22" font-size="7" font-weight="bold" fill="#ef4444" text-anchor="middle">➕</text></svg>`
+
+      priorityIncidents.forEach((incident) => {
+        // 綠色圓環 — 代表優先通行範圍區域
+        const greenCircle = L.circle([incident.lat, incident.lng], {
+          radius: 35,
+          color: '#22c55e',
+          weight: 4,
+          opacity: 0.9,
+          fillColor: '#22c55e',
+          fillOpacity: 0.12,
+          dashArray: '8 5',
+          className: 'priority-circle',
+        })
+        greenCircle.addTo(priorityLayerRef.current!)
+
+        // 救護車圖示 — 與路口同座標，用 pixel offset 定位在圓點右上方（保持距離不重疊）
+        const ambulanceIcon = L.divIcon({
+          className: 'ambulance-marker',
+          html: AMBULANCE_SVG,
+          iconSize: [48, 36],
+          iconAnchor: [24, -10],  // 水平置中、垂直向下偏移，顯示在圓點正下方
+        })
+        const ambulanceMarker = L.marker(
+          [incident.lat, incident.lng],
+          { icon: ambulanceIcon, interactive: false },
+        )
+        ambulanceMarker.addTo(priorityLayerRef.current!)
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDangerTab, availableIntersections, dangerChecking, availableIncidents, incidentChecking, t])
+  }, [isDangerTab, availableIntersections, dangerChecking, availableIncidents, incidentChecking, activeTab, priorityIncidents, t])
 
   // Step 4: Fly to active target + render pulse marker
   useEffect(() => {
@@ -363,6 +428,12 @@ export default function DashboardPage() {
     return mockService.getSignalInfo(navigatedIncident.id)
   }, [activeTab, navigatedIncident])
 
+  // 策略成效隨 selectedIncident 變動 — 同事件固定數據、跨事件會變化
+  const strategyEffects = useMemo(() => {
+    if (activeTab !== 'dynamicSignal' || !selectedIncident) return []
+    return mockService.getStrategyEffects(selectedIncident.id)
+  }, [activeTab, selectedIncident])
+
   // 卡片靠近右邊界時自動翻到 marker 左側
   const signalCardSide: 'left' | 'right' = useMemo(() => {
     if (!signalCardPos || !mapContainerRef.current) return 'right'
@@ -401,7 +472,13 @@ export default function DashboardPage() {
           <button
             key={tab.key}
             className={activeTab === tab.key ? 'tab-btn active' : 'tab-btn'}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              setActiveTab(tab.key)
+              // 切換 tab 時清除舊的選取狀態，避免前一個 tab 的標記殘留
+              setNavigatedIncident(null)
+              setSelectedIncident(null)
+              setSelectedIntersection(null)
+            }}
           >
             {t(tab.label)}
           </button>
@@ -539,7 +616,13 @@ export default function DashboardPage() {
         ) : (
           <>
             <div className="card incident-list-card">
-              <h3>{t('即時事件通報列表')}</h3>
+              <h3>
+                {activeTab === 'dynamicSignal'
+                  ? t('動態號控列表')
+                  : activeTab === 'priorityPass'
+                    ? t('優先通行列表')
+                    : t('即時事件通報列表')}
+              </h3>
 
               {incidentChecking ? (
                 <div className="cctv-checking">
@@ -569,7 +652,118 @@ export default function DashboardPage() {
                     {t('重新檢查')}
                   </button>
                 </div>
+              ) : activeTab === 'dynamicSignal' ? (
+                /* 動態號控 tab：扁平清單，路口名為主視覺 */
+                <div className="signal-list">
+                  {flatIncidents.map((item) => {
+                    const si = mockService.getSignalInfo(item.id)
+                    const modeClass = si ? (si.mode === '離線' ? 'offline' : si.mode === '手動' ? 'manual' : 'auto') : 'auto'
+                    const isActive = selectedIncident?.id === item.id
+                    const isNavigated = navigatedIncident?.id === item.id
+                    return (
+                      <div
+                        key={item.id}
+                        className={
+                          'signal-row' +
+                          (isActive ? ' active' : '') +
+                          (isNavigated ? ' navigated' : '')
+                        }
+                        onClick={() => handleNavigate(item)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleNavigate(item)
+                          }
+                        }}
+                      >
+                        <span className={`signal-row-accent ${modeClass}`} aria-hidden="true" />
+                        <div className="signal-row-icon" aria-hidden="true">
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="8" y="2" width="8" height="20" rx="2.5" />
+                            <circle cx="12" cy="7" r="1.6" fill="currentColor" stroke="none" />
+                            <circle cx="12" cy="12" r="1.6" />
+                            <circle cx="12" cy="17" r="1.6" />
+                            <path d="M8 7h-2M8 12h-2M16 7h2M16 17h2" />
+                          </svg>
+                        </div>
+                        <span className="signal-row-location">{item.location}</span>
+                        <span className="signal-row-time">{item.time}</span>
+                        <button
+                          type="button"
+                          className="signal-row-nav"
+                          title={t('導航至此路口')}
+                          aria-label={t('導航至此路口')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleNavigate(item)
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                          </svg>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : activeTab === 'priorityPass' ? (
+                /* 優先通行 tab：扁平清單，只顯示 3 個路口名稱 */
+                <div className="signal-list">
+                  {priorityIncidents.map((item) => {
+                    const isActive = selectedIncident?.id === item.id
+                    const isNavigated = navigatedIncident?.id === item.id
+                    return (
+                      <div
+                        key={item.id}
+                        className={
+                          'signal-row' +
+                          (isActive ? ' active' : '') +
+                          (isNavigated ? ' navigated' : '')
+                        }
+                        onClick={() => handleNavigate(item)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            handleNavigate(item)
+                          }
+                        }}
+                      >
+                        <span className="signal-row-accent auto" aria-hidden="true" />
+                        <div className="signal-row-icon" aria-hidden="true">
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 17h1l2-3h12l2 3h1" />
+                            <path d="M3 17a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4z" />
+                            <circle cx="7.5" cy="17" r="1.5" />
+                            <circle cx="16.5" cy="17" r="1.5" />
+                            <path d="M12 4v4M9.5 6h5" />
+                          </svg>
+                        </div>
+                        <span className="signal-row-location">{item.location}</span>
+                        <span className="signal-row-time">{item.time}</span>
+                        <button
+                          type="button"
+                          className="signal-row-nav"
+                          title={t('導航至此路口')}
+                          aria-label={t('導航至此路口')}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleNavigate(item)
+                          }}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                          </svg>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
               ) : (
+                /* 無號誌路口 tab：保留原本的狀態分組樣式 */
                 <div className="incident-list">
                   {incidentGroups.map((group) => {
                     const className = STATUS_CLASSNAME[group.status]
@@ -643,6 +837,106 @@ export default function DashboardPage() {
                 <button className="btn ghost">{t('忽略')}</button>
               </div>
             </div>
+
+            {(activeTab === 'dynamicSignal' || activeTab === 'priorityPass') && (
+              <>
+                <div className="card kpi-card">
+                  <div className="kpi-section-header">
+                    <h3>{t('道路績效')}</h3>
+                    <div className="kpi-update-row">
+                      <span className="kpi-update-time">
+                        {t('更新時間')}：{routeKpiUpdateTime}
+                      </span>
+                      <button
+                        type="button"
+                        className="kpi-refresh-btn"
+                        onClick={handleRefreshRouteKpi}
+                        title={t('重新整理')}
+                        aria-label={t('重新整理')}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 12a9 9 0 1 1-3.5-7.1" />
+                          <polyline points="21 4 21 10 15 10" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="kpi-grid">
+                    {routeKpi.map((k) => (
+                      <div key={k.label} className="kpi-tile">
+                        <div className="kpi-tile-head">
+                          <span className="kpi-tile-label">{t(k.label)}</span>
+                          <button
+                            type="button"
+                            className="kpi-tile-menu"
+                            aria-label="menu"
+                            tabIndex={-1}
+                          >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <line x1="4" y1="7" x2="20" y2="7" />
+                              <line x1="4" y1="12" x2="20" y2="12" />
+                              <line x1="4" y1="17" x2="20" y2="17" />
+                            </svg>
+                          </button>
+                        </div>
+                        <span className="kpi-tile-sub">{t(k.sub)}</span>
+                        <span className="kpi-tile-value">{k.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {strategyEffects.length > 0 && (
+                <div className="card strategy-card">
+                  <div className="kpi-section-header">
+                    <h3>{t('上次策略成效量化評估')}</h3>
+                  </div>
+                  <div className="strategy-grid">
+                    {strategyEffects.map((s) => {
+                      // ZH: 路名直接黏指標；EN: 中間補空格保持可讀性
+                      const labelTail = lang === 'zh' ? s.metric : ` ${t(s.metric)}`
+                      const sign = s.improved ? '-' : '+'
+                      const trendClass = s.improved ? 'improved' : 'worsened'
+                      return (
+                        <div key={`${s.road}-${s.metric}`} className="strategy-tile">
+                          <span className="strategy-tile-label">
+                            {s.road}{labelTail}
+                          </span>
+                          <span className={`strategy-tile-value ${trendClass}`}>
+                            {sign}{s.value}%
+                            <svg
+                              className="strategy-tile-arrow"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                            >
+                              {s.improved ? (
+                                <>
+                                  <line x1="12" y1="5" x2="12" y2="19" />
+                                  <polyline points="6 13 12 19 18 13" />
+                                </>
+                              ) : (
+                                <>
+                                  <line x1="12" y1="19" x2="12" y2="5" />
+                                  <polyline points="6 11 12 5 18 11" />
+                                </>
+                              )}
+                            </svg>
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+                )}
+              </>
+            )}
 
             {activeTab === 'unsignalizedIntersection' && (
               <div className="card">

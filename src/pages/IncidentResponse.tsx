@@ -51,7 +51,6 @@ export default function IncidentResponsePage() {
             </li>
           ))}
         </ul>
-        <img src={`${import.meta.env.BASE_URL}media/image10.jpeg`} alt={t('事故偵測示意')} className="preview" />
       </article>
     </section>
   )
