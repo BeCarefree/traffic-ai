@@ -584,8 +584,8 @@ export default function DashboardPage() {
           <div
             className="scene-overlay"
             style={{
-              left: sceneImagePos.x + 40,
-              top: sceneImagePos.y + 40,
+              left: sceneImagePos.x + 30,
+              top: sceneImagePos.y + 30,
             }}
           >
             <img
