@@ -10,7 +10,10 @@ const STORAGE_KEY = 'traffic-ai.lang'
 function readInitialLang(): Lang {
   if (typeof window === 'undefined') return 'zh'
   const stored = window.localStorage.getItem(STORAGE_KEY)
-  return stored === 'en' ? 'en' : 'zh'
+  if (stored === 'zh' || stored === 'en' || stored === 'es419') {
+    return stored
+  }
+  return 'zh'
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
@@ -19,7 +22,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(STORAGE_KEY, lang)
-    document.documentElement.lang = lang === 'zh' ? 'zh-Hant' : 'en'
+    document.documentElement.lang =
+      lang === 'zh' ? 'zh-Hant' : lang === 'en' ? 'en' : 'es-419'
   }, [lang])
 
   const setLang = useCallback((next: Lang) => setLangState(next), [])
