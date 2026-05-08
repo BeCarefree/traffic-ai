@@ -27,6 +27,13 @@ function LanguageToggle() {
       >
         EN
       </button>
+      <button
+        type="button"
+        className={'lang-toggle-btn' + (lang === 'es419' ? ' active' : '')}
+        onClick={() => setLang('es419')}
+      >
+        ES
+      </button>
     </div>
   )
 }
