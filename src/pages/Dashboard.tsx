@@ -24,6 +24,8 @@ const DEFAULT_ZOOM = 16
 const FLY_ZOOM = 17
 const CCTV_CONCURRENCY = 5
 
+const CARTO_API_KEY = import.meta.env.VITE_CARTO_API_KEY || ''
+
 type ActiveTarget =
   | { kind: 'incident'; item: IncidentItem }
   | { kind: 'intersection'; item: DangerIntersection }
@@ -232,8 +234,8 @@ export default function DashboardPage() {
       attributionControl: true,
     })
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    L.tileLayer(`https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${CARTO_API_KEY}`, {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       maxZoom: 20,
       subdomains: 'abcd',
     }).addTo(map)
